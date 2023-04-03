@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "ranges": "cpp",
+        "regex": "cpp",
+        "system_error": "cpp"
+    }
+}

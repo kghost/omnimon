@@ -1,0 +1,12 @@
+CMakeFiles
+cmake_install.cmake
+Makefile
+*.a
+
+/build
+/CMakeCache.txt
+/src/frontend/curses/omnimon
+/src/backend/bpf/btfs/vmlinux.btf.h
+/src/backend/process/file/FileIo.bpf.o
+/src/backend/process/file/FileIo.skel.h
+/compile_commands.json
