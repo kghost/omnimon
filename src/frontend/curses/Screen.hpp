@@ -1,9 +1,5 @@
 #pragma once
 
-#include <signal.h>
-
-#include "Events.hpp"
-#include "Options.hpp"
 #include "ProcessTree.hpp"
 #include "layouts/Container.hpp"
 

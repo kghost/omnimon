@@ -1,6 +1,8 @@
 #pragma once
 
 #include <memory>
+#include <ranges>
+#include <span>
 #include <vector>
 
 #include "View.hpp"
@@ -36,12 +38,20 @@ public:
     virtual DisplayLength GetMarginBefore() const = 0;
     virtual DisplayLength GetMarginAfter() const = 0;
     virtual View& GetView() = 0;
+
+    void MarkForDeletion() { _MarkForDeletion = true; }
+    bool IsMarkForDeletion() const { return _MarkForDeletion; }
+
+  private:
+    bool _MarkForDeletion = false;
   };
 
   explicit Container(GrowthType growth) : View(), _Growth(growth) {}
   ~Container() override {}
 
-  auto GetChildren() { return std::span<std::shared_ptr<Child>>(_Children); }
+  auto GetChildren() {
+    return std::span(_Children) | std::views::filter([](auto child) { return !child->IsMarkForDeletion(); });
+  }
 
   bool SetLayout(Layout offset, Layout layout) override;
 

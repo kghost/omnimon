@@ -16,13 +16,13 @@ public:
   virtual DataType GetValue() const = 0;
 };
 
-class SimpleGauge : public Gauge {
+template <typename T> class BasicTypeGauge : public Gauge {
 public:
-  explicit SimpleGauge() = default;
-  explicit SimpleGauge(DataType value) : _Value(value), _LastUpdate(std::chrono::steady_clock::now()) {}
-  ~SimpleGauge() = default;
+  explicit BasicTypeGauge() = default;
+  explicit BasicTypeGauge(T value) : _Value(value), _LastUpdate(std::chrono::steady_clock::now()) {}
+  ~BasicTypeGauge() = default;
 
-  void Update(DataType value) {
+  void Update(T value) {
     if (_Value != value) {
       _Value = value;
       _LastUpdate = std::chrono::steady_clock::now();
@@ -31,12 +31,14 @@ public:
   }
 
   std::chrono::steady_clock::time_point GetLastUpdate() const override { return _LastUpdate; }
-  DataType GetValue() const override { return _Value; }
+  T GetValue() const override { return _Value; }
 
 protected:
   std::chrono::steady_clock::time_point _LastUpdate;
-  DataType _Value;
+  T _Value;
 };
+
+using SimpleGauge = BasicTypeGauge<DataType>;
 
 class ConstGauge : public Gauge {
 public:

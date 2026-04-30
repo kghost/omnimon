@@ -51,7 +51,7 @@ public:
 private:
   static constexpr DisplayLength _TableHeaderHeight = 1;
   DisplayLength GetHeight() const;
-  std::span<std::shared_ptr<Row>> GetDataRows() { return _Table->GetRows().subspan(1); }
+  auto GetDataRows() { return _Table->GetRows() | std::views::drop(1); }
   void UpdateTable(const std::vector<std::shared_ptr<frontend::curses::Process>>& ps,
                    std::span<std::shared_ptr<Row>> rows);
   void MoveCursorAndDraw(DisplayLength offset);

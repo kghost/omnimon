@@ -3,7 +3,7 @@
 namespace backend::metrics {
 
 std::chrono::steady_clock::time_point ArithmeticBase::GetLastUpdate() const {
-  return std::min(_Operand1->GetLastUpdate(), _Operand2->GetLastUpdate());
+  return std::max(_Operand1->GetLastUpdate(), _Operand2->GetLastUpdate());
 }
 
 DataType Plus::GetValue() const { return _Operand1->GetValue() + _Operand2->GetValue(); }

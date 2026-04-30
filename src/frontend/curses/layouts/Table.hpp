@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <ranges> // C++20
+#include <span>
 #include <vector>
 
 #include "Container.hpp"
@@ -33,6 +34,8 @@ public:
   DisplayLength GetMarginAfter() const override;
   View& GetView() override { return *_View; }
 
+  std::shared_ptr<Row> GetRow() { return _Row; }
+  std::shared_ptr<Column> GetColumn() { return _Column; }
   std::shared_ptr<TableCellBinding> GetBinding() { return _Binding; }
 
 private:
@@ -83,11 +86,15 @@ public:
 
   bool OnKey(TermKeyCode key) override;
 
+  void MarkForDeletion() { _MarkForDeletion = true; }
+  bool IsMarkForDeletion() const { return _MarkForDeletion; }
+
 private:
   Table& _Table;
   std::shared_ptr<TableColumnBinding> _Binding;
   Container::ChildArrangement _Arrangement;
   DisplayLength _Size;
+  bool _MarkForDeletion = false;
 };
 
 class ColumnBuilderInterface {
@@ -103,14 +110,6 @@ template <typename... Columns> class ColumnBuilder : public ColumnBuilderInterfa
 
 class Row : public Container::Child, public Container {
 public:
-  // static Layout InitailSize(Container& parent, DisplayLength size) {
-  //   if (parent._Growth == GrowthType::Vertical) {
-  //     return {size, parent.GetLayout().Width};
-  //   } else {
-  //     return {parent.GetLayout().Height, size};
-  //   }
-  // }
-
   explicit Row(Table& table, std::shared_ptr<TableRowBinding> binding, DisplayLength size);
   virtual ~Row() = default;
 
@@ -127,9 +126,8 @@ public:
 
   std::shared_ptr<TableRowBinding> GetBinding() const { return _Binding; }
   auto GetCells() {
-    return std::views::transform(GetChildren(), [](std::shared_ptr<Container::Child> child) {
-      return std::dynamic_pointer_cast<TableCell>(child);
-    });
+    return GetChildren() |
+           std::views::transform([](auto child) { return std::dynamic_pointer_cast<TableCell>(child); });
   }
 
 private:
@@ -152,20 +150,33 @@ public:
   bool OnKey(TermKeyCode key) override;
   bool SetLayout(Layout offset, Layout layout) override;
 
-  void RearrangeLayout();
-  std::span<std::shared_ptr<Row>> GetRows() { return _Rows; }
-  std::shared_ptr<Row> AppendRow(std::shared_ptr<TableRowBinding> binding, DisplayLength size);
+  void CalculateLayout();
 
-  std::span<std::shared_ptr<Column>> GetColumns() { return _Columns; }
+  auto GetRows() {
+    return GetChildren() | std::views::filter([](auto child) { return !child->IsMarkForDeletion(); }) |
+           std::views::transform([](auto child) { return std::dynamic_pointer_cast<Row>(child); });
+  }
+  std::shared_ptr<Row> AppendRow(std::shared_ptr<TableRowBinding> binding, DisplayLength size);
+  std::shared_ptr<Row> GetCursorRow() const { return _CursorRow; }
+  std::shared_ptr<Row> NextRow(const std::shared_ptr<Row>& row);
+  std::shared_ptr<Row> PrevRow(const std::shared_ptr<Row>& row);
+
+  auto GetColumns() {
+    return _Columns | std::views::filter([](auto column) { return !column->IsMarkForDeletion(); });
+  }
   std::shared_ptr<Column> AppendColumn(std::shared_ptr<TableColumnBinding> binding,
                                        Container::ChildArrangement::ArrangementType arrangement, DisplayLength size,
                                        DisplayLength marginBefore, DisplayLength marginAfter);
+  std::shared_ptr<Column> GetCursorColumn() const { return _CursorColumn; }
+  std::shared_ptr<Column> NextColumn(const std::shared_ptr<Column>& column);
+  std::shared_ptr<Column> PrevColumn(const std::shared_ptr<Column>& column);
 
 private:
   InputHandler& _InputHandler;
   TableCellFactory& _CellFactory;
   std::vector<std::shared_ptr<Column>> _Columns;
-  std::vector<std::shared_ptr<Row>> _Rows;
+  std::shared_ptr<Row> _CursorRow;
+  std::shared_ptr<Column> _CursorColumn;
 };
 
 } // namespace frontend::curses

@@ -27,7 +27,7 @@ Column::Column(Table& table, std::shared_ptr<TableColumnBinding> binding,
 void Column::SetSize(DisplayLength size) {
   if (_Size != size) {
     _Size = size;
-    _Table.RearrangeLayout();
+    _Table.CalculateLayout();
   }
 }
 bool Column::OnKey(TermKeyCode key) { return false; }
@@ -55,13 +55,23 @@ bool Table::OnKey(TermKeyCode key) { return _InputHandler.OnKey(key); }
 
 bool Table::SetLayout(Layout offset, Layout layout) { return Container::SetLayout(offset, layout); }
 
-void Table::RearrangeLayout() {
-  if (_Rows.empty()) {
+void Table::CalculateLayout() {
+  auto rows = GetRows();
+  if (rows.empty()) {
     return;
   }
-  auto& row1 = _Rows[0];
+
+  for (auto row : rows) {
+    for (auto cell : row->GetCells()) {
+      if (cell->GetColumn()->IsMarkForDeletion()) {
+        cell->MarkForDeletion();
+      }
+    }
+  }
+
+  auto row1 = *rows.begin();
   row1->CalculateLayout();
-  for (auto& row : _Rows) {
+  for (auto row : rows) {
     row->MakeSimilarTo(*row1);
   }
 }
@@ -72,7 +82,6 @@ std::shared_ptr<Row> Table::AppendRow(std::shared_ptr<TableRowBinding> binding, 
     row->AppendChild(std::make_shared<TableCell>(row, column, _CellFactory.NewCell(*this, row, column)));
   }
   Container::AppendChild(row);
-  _Rows.push_back(row);
   return row;
 }
 
@@ -81,7 +90,7 @@ std::shared_ptr<Column> Table::AppendColumn(std::shared_ptr<TableColumnBinding> 
                                             DisplayLength size, DisplayLength marginBefore, DisplayLength marginAfter) {
   auto column = std::make_shared<Column>(*this, binding, arrangement, size, marginBefore, marginAfter);
   _Columns.push_back(column);
-  for (auto& row : _Rows) {
+  for (auto row : GetRows()) {
     row->AppendChild(std::make_shared<TableCell>(row, column, _CellFactory.NewCell(*this, row, column)));
   }
   return column;

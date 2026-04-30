@@ -605,12 +605,13 @@ void ProcessTree::UpdateTable(const std::vector<std::shared_ptr<frontend::curses
     } else if (i >= ps.size() && i < rows.size()) {
       // Remove the row
       auto& row = rows[i];
+      row->MarkForDeletion();
       auto binding = std::dynamic_pointer_cast<ProcessTreeTableDataBinding>(row->GetBinding());
       binding->UpdateProcess(row, nullptr);
     } else if (i < ps.size() && i >= rows.size()) {
       // Add new row
       auto binding = std::make_shared<ProcessTreeTableDataBinding>(i, ps[i]);
-      auto row = _Table->AppendRow(binding, 1);
+      _Table->AppendRow(binding, 1);
       ps[i]->Update();
     }
   }
