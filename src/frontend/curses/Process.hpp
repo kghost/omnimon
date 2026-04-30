@@ -26,7 +26,17 @@ private:
   class ProcessWeakPtrOrder {
   public:
     bool operator()(const std::weak_ptr<Process>& a, const std::weak_ptr<Process>& b) const {
-      return a.lock()->GetPid() < b.lock()->GetPid();
+      auto ptrA = a.lock();
+      auto ptrB = b.lock();
+      if (ptrA && ptrB) {
+        return ptrA->GetPid() < ptrB->GetPid();
+      } else if (ptrA) {
+        return true;
+      } else if (ptrB) {
+        return false;
+      } else {
+        return false;
+      }
     }
   };
 

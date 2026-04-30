@@ -18,7 +18,6 @@ public:
 
 private:
   std::shared_ptr<View> _View;
-  bool _LocationInvalid = true;
 };
 
 } // namespace frontend::curses

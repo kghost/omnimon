@@ -1,79 +1,64 @@
 #pragma once
 
-#include <set>
+#include <memory>
 #include <vector>
 
 #include "../../backend/metrics/Gauge.hpp"
-#include "../../backend/process/ProcessListing.hpp"
 #include "ProcessOrder.hpp"
 #include "layouts/Table.hpp"
 
 namespace frontend::curses {
 
-class ProcessCell;
-
-class ProcessTree {
+class ProcessTree : public InputHandler, public TableCellFactory {
 public:
   explicit ProcessTree();
 
-  class ProcessTreeTableHeaderBinding : public TableBinding {
+  class ProcessTreeTableRowBinding : public TableRowBinding {
   public:
-    explicit ProcessTreeTableHeaderBinding() = default;
-    ~ProcessTreeTableHeaderBinding() override = default;
-
-    bool OnKey(TermKeyCode key) override;
-    std::shared_ptr<View> OnNewCell(Table& table, Row& row, Column& column) override;
+    virtual std::shared_ptr<TableCellBinding> CreateCell(ProcessTree& tree, std::shared_ptr<Column> column,
+                                                         std::shared_ptr<TableRowBinding> row) = 0;
   };
 
-  class ProcessTreeTableRowBinding : public TableBinding {
+  class ProcessTreeTableHeaderBinding : public ProcessTreeTableRowBinding {
   public:
-    explicit ProcessTreeTableRowBinding(ProcessTree& tree, size_t index, std::shared_ptr<Process> process);
-    ~ProcessTreeTableRowBinding() override = default;
+    std::shared_ptr<TableCellBinding> CreateCell(ProcessTree& tree, std::shared_ptr<Column> column,
+                                                 std::shared_ptr<TableRowBinding> row) override;
+  };
 
-    size_t GetIndex() const { return _Index; }
-    bool OnKey(TermKeyCode key) override;
-    std::shared_ptr<View> OnNewCell(Table& table, Row& row, Column& column) override;
+  class ProcessTreeTableDataBinding : public ProcessTreeTableRowBinding {
+  public:
+    explicit ProcessTreeTableDataBinding(DisplayLength index, std::shared_ptr<Process> process);
+
+    DisplayLength GetIndex() const { return _Index; }
+    std::shared_ptr<TableCellBinding> CreateCell(ProcessTree& tree, std::shared_ptr<Column> column,
+                                                 std::shared_ptr<TableRowBinding> row) override;
     std::shared_ptr<Process> GetProcess() const { return _Process; }
-    void UpdateProcess(std::shared_ptr<Process> process);
+    void UpdateProcess(std::shared_ptr<Row> row, std::shared_ptr<Process> process);
 
   private:
-    ProcessTree& _Tree;
-    size_t _Index;
+    DisplayLength _Index;
     std::shared_ptr<Process> _Process;
-    std::vector<std::shared_ptr<ProcessCell>> _Cells;
   };
 
-  class TableInputHandler : public InputHandler {
-  public:
-    explicit TableInputHandler(ProcessTree& tree) : _ProcessTree(tree) {}
-    ~TableInputHandler() override = default;
+  std::shared_ptr<TableCellBinding> NewCell(Table& table, std::shared_ptr<Row> row,
+                                            std::shared_ptr<Column> column) override;
+  std::shared_ptr<View> GetView() { return _Table; }
 
-    bool OnKey(TermKeyCode key) override;
-
-  private:
-    ProcessTree& _ProcessTree;
-  };
-
-  class ProcessTreeState {
-  public:
-    explicit ProcessTreeState() = default;
-  };
-
-  std::shared_ptr<View> GetView() const;
   void Update();
-  bool OnKey(TermKeyCode key);
+  bool OnKey(TermKeyCode key) override;
   std::shared_ptr<backend::metrics::Gauge> GetCursor() const { return _Cursor; };
 
 private:
+  static constexpr DisplayLength _TableHeaderHeight = 1;
   DisplayLength GetHeight() const;
-  void UpdateTable(const std::vector<std::shared_ptr<frontend::curses::Process>>& ps);
+  std::span<std::shared_ptr<Row>> GetDataRows() { return _Table->GetRows().subspan(1); }
+  void UpdateTable(const std::vector<std::shared_ptr<frontend::curses::Process>>& ps,
+                   std::span<std::shared_ptr<Row>> rows);
   void MoveCursorAndDraw(DisplayLength offset);
 
   ProcessCollection _ProcessCollection;
-  std::shared_ptr<InputHandler> _TableInputHandler;
-  Table _Table;
+  std::shared_ptr<Table> _Table;
   std::shared_ptr<backend::metrics::SimpleGauge> _Cursor;
-  std::vector<std::shared_ptr<ProcessTreeTableRowBinding>> _Rows;
 };
 
 } // namespace frontend::curses

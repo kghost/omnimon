@@ -1,6 +1,5 @@
 #pragma once
 
-#include <memory>
 #include <string>
 
 #include "AttrView.hpp"
@@ -11,7 +10,7 @@ class TextView : public AttrView {
 public:
   enum class Align { Left, Center, Right };
 
-  explicit TextView(Align align = Align::Left) : _Align(align) {}
+  explicit TextView(Align align = Align::Left, std::string text = "") : _Align(align), _Text(text) {}
   ~TextView() override = default;
 
   bool OnKey(TermKeyCode key) override { return false; }

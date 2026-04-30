@@ -1,8 +1,5 @@
 #pragma once
 
-#include <memory>
-#include <string>
-
 #include "View.hpp"
 
 namespace frontend::curses {

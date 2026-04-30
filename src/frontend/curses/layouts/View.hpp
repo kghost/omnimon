@@ -3,6 +3,7 @@
 #include "Curses.hpp"
 
 #include "../../../utils/StringUtils.hpp"
+#include <memory>
 
 namespace frontend::curses {
 
@@ -24,9 +25,11 @@ public:
   virtual bool OnKey(TermKeyCode key) = 0;
 };
 
+class ViewDataBinding : public InputHandler {};
+
 class View : public InputHandler {
 public:
-  View() = default;
+  explicit View() : _Layout({0, 0}), _Offset({0, 0}) {}
   virtual ~View() = default;
 
   View(const View&) = delete;
@@ -41,6 +44,9 @@ public:
   bool GetVisible() const { return _Visible; }
   void SetVisible(bool visible) { _Visible = visible; }
 
+  void Bind(std::weak_ptr<ViewDataBinding> binding) { _Binding = binding; }
+  std::shared_ptr<ViewDataBinding> GetBinding() const { return _Binding.lock(); }
+
   // Each update contains 2 stages:
   // 1. DrawPrepare: clear/remove old content.
   // 2. DrawContent: draw current content.
@@ -50,6 +56,7 @@ public:
 protected:
   Layout _Offset, _Layout;
   bool _Visible = true;
+  std::weak_ptr<ViewDataBinding> _Binding;
 };
 
 } // namespace frontend::curses

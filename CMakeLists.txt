@@ -1,10 +1,11 @@
 cmake_minimum_required(VERSION 3.10)
 
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/build)
 set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-set(CMAKE_C_COMPILER "/usr/bin/gcc")
-set(CMAKE_CXX_COMPILER "/usr/bin/g++")
-set(CMAKE_CXX_EXTENSIONS false)
+# set(CMAKE_C_COMPILER "/usr/bin/clang-16")
+# set(CMAKE_CXX_COMPILER "/usr/bin/clang++-16")
+set(CMAKE_CXX_EXTENSIONS true)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED true)
 set(CMAKE_BUILD_TYPE Debug)

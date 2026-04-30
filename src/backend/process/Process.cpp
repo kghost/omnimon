@@ -1,6 +1,5 @@
 #include "Process.hpp"
 
-#include <algorithm>
 #include <fcntl.h>
 #include <fstream>
 #include <ranges>

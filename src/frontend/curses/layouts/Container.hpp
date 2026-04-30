@@ -9,41 +9,39 @@ namespace frontend::curses {
 
 class Container : public View {
 public:
-  enum class GrowthType { TopDown, LeftRight };
-  enum class ArrangementType { Forward, Backward, FillRest };
-
-  class Context {
+  enum class GrowthType { Vertical, Horizontal };
+  class ChildArrangement {
   public:
-    explicit Context() = default;
-    virtual ~Context() = default;
+    enum class ArrangementType { Forward, Backward, FillRest };
 
-    virtual ArrangementType GetArrangement() const = 0;
-    virtual DisplayLength GetSize() const = 0;
-    virtual DisplayLength GetMarginBefore() const { return 0; }
-    virtual DisplayLength GetMarginAfter() const { return 0; }
-  };
+    explicit ChildArrangement(ArrangementType type, DisplayLength marginBefore, DisplayLength marginAfter)
+        : _Arrangement(type), _MarginBefore(marginBefore), _MarginAfter(marginAfter) {}
+    ~ChildArrangement() = default;
 
-  class SimpleContext : public Context {
-  public:
-    explicit SimpleContext(ArrangementType arrangement, DisplayLength size, DisplayLength marginBefore = 0,
-                           DisplayLength marginAfter = 0)
-        : Arrangement(arrangement), Size(size), MarginBefore(marginBefore), MarginAfter(marginAfter) {}
-    virtual ~SimpleContext() = default;
-
-    virtual ArrangementType GetArrangement() const { return Arrangement; }
-    virtual DisplayLength GetSize() const { return Size; }
-    virtual DisplayLength GetMarginBefore() const { return MarginBefore; }
-    virtual DisplayLength GetMarginAfter() const { return MarginAfter; }
+    ArrangementType GetArrangement() const { return _Arrangement; }
+    DisplayLength GetMarginBefore() const { return _MarginBefore; }
+    DisplayLength GetMarginAfter() const { return _MarginAfter; }
 
   private:
-    ArrangementType Arrangement;
-    DisplayLength Size;
-    DisplayLength MarginBefore;
-    DisplayLength MarginAfter;
+    ArrangementType _Arrangement;
+    DisplayLength _MarginBefore;
+    DisplayLength _MarginAfter;
   };
 
-  explicit Container(GrowthType growth) : View(), Growth(growth) {}
+  class Child {
+  public:
+    virtual ~Child() = default;
+    virtual ChildArrangement::ArrangementType GetArrangement() const = 0;
+    virtual DisplayLength GetSize() const = 0;
+    virtual DisplayLength GetMarginBefore() const = 0;
+    virtual DisplayLength GetMarginAfter() const = 0;
+    virtual View& GetView() = 0;
+  };
+
+  explicit Container(GrowthType growth) : View(), _Growth(growth) {}
   ~Container() override {}
+
+  auto GetChildren() { return std::span<std::shared_ptr<Child>>(_Children); }
 
   bool SetLayout(Layout offset, Layout layout) override;
 
@@ -51,31 +49,35 @@ public:
   void DrawPrepare(const UpdateContext& attrs) override;
   void DrawContent(const UpdateContext& attrs) override;
 
-  void AppendChild(std::shared_ptr<View> view, std::shared_ptr<const Context> context);
+  void AppendChild(std::shared_ptr<Child> view);
   void CalculateLayout();
   void MakeSimilarTo(const Container& other);
 
-private:
-  DisplayLength& ParrelGrowth(Layout& layout) { return Growth == GrowthType::TopDown ? layout.Height : layout.Width; }
-  DisplayLength& PerpGrowth(Layout& layout) { return Growth == GrowthType::TopDown ? layout.Width : layout.Height; }
+  static DisplayLength& ParrelGrowth(GrowthType growth, Layout& layout) {
+    return growth == GrowthType::Vertical ? layout.Height : layout.Width;
+  }
+  static DisplayLength& PerpGrowth(GrowthType growth, Layout& layout) {
+    return growth == GrowthType::Vertical ? layout.Width : layout.Height;
+  }
 
-  void CalculateChildLayout(std::shared_ptr<View> view, std::shared_ptr<const Context> context);
+  static DisplayLength ParrelGrowth(GrowthType growth, const Layout& layout) {
+    return growth == GrowthType::Vertical ? layout.Height : layout.Width;
+  }
+  static DisplayLength PerpGrowth(GrowthType growth, const Layout& layout) {
+    return growth == GrowthType::Vertical ? layout.Width : layout.Height;
+  }
+
+private:
+  void CalculateChildLayout(std::shared_ptr<Child> view);
 
   // Data members
 public:
-  const GrowthType Growth;
+  const GrowthType _Growth;
+
+protected:
+  std::vector<std::shared_ptr<Child>> _Children;
 
 private:
-  class Child {
-  public:
-    explicit Child(std::shared_ptr<View> view, std::shared_ptr<const Context> context)
-        : _View(view), _Context(context) {}
-
-    std::shared_ptr<View> _View;
-    std::shared_ptr<const Context> _Context;
-  };
-
-  std::vector<Child> _Children;
   DisplayLength _AllcatedForward = 0;
   DisplayLength _AllcatedBackward = 0;
 };

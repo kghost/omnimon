@@ -1,7 +1,11 @@
 #pragma once
 
+#include <memory>
+#include <ranges> // C++20
+#include <vector>
+
 #include "Container.hpp"
-#include "TextView.hpp"
+#include "View.hpp"
 
 namespace frontend::curses {
 
@@ -9,31 +13,62 @@ class Table;
 class Column;
 class Row;
 
-class TableContainer : public Container {
-  // A container which propagates key events to the input handler.
+class TableCellBinding : public InputHandler {
 public:
-  explicit TableContainer(std::shared_ptr<InputHandler> input, GrowthType growth)
-      : Container(growth), _TableInputHandler(input) {}
-  ~TableContainer() override = default;
+  explicit TableCellBinding() = default;
+  virtual ~TableCellBinding() = default;
 
-  bool OnKey(TermKeyCode key) override;
+  bool OnKey(TermKeyCode key) override { return false; }
+  virtual std::shared_ptr<View> CreateView(std::shared_ptr<Row> row, std::shared_ptr<Column> column) = 0;
+};
+
+class TableCell : public Container::Child {
+public:
+  explicit TableCell(std::shared_ptr<Row> row, std::shared_ptr<Column> column,
+                     std::shared_ptr<TableCellBinding> binding);
+
+  Container::ChildArrangement::ArrangementType GetArrangement() const override;
+  DisplayLength GetSize() const override;
+  DisplayLength GetMarginBefore() const override;
+  DisplayLength GetMarginAfter() const override;
+  View& GetView() override { return *_View; }
+
+  std::shared_ptr<TableCellBinding> GetBinding() { return _Binding; }
 
 private:
-  std::weak_ptr<InputHandler> _TableInputHandler;
+  std::shared_ptr<Row> _Row;
+  std::shared_ptr<Column> _Column;
+  std::shared_ptr<TableCellBinding> _Binding;
+  std::shared_ptr<View> _View;
 };
 
-class TableBinding : public InputHandler {
+class TableCellFactory {
 public:
-  explicit TableBinding() = default;
-  virtual ~TableBinding() = default;
-
-  virtual std::shared_ptr<View> OnNewCell(Table& table, Row& row, Column& column) = 0;
+  explicit TableCellFactory() = default;
+  virtual ~TableCellFactory() = default;
+  virtual std::shared_ptr<TableCellBinding> NewCell(Table& table, std::shared_ptr<Row> row,
+                                                    std::shared_ptr<Column> column) = 0;
 };
 
-class Column : public Container::Context {
+class TableRowBinding : public InputHandler {
 public:
-  explicit Column(Table& table, Container::ArrangementType arrangement, DisplayLength size)
-      : _Table(table), _Arrangement(arrangement), _Size(size) {}
+  explicit TableRowBinding() = default;
+  virtual ~TableRowBinding() = default;
+  bool OnKey(TermKeyCode key) override { return false; }
+};
+
+class TableColumnBinding : public InputHandler {
+public:
+  explicit TableColumnBinding() = default;
+  virtual ~TableColumnBinding() = default;
+  bool OnKey(TermKeyCode key) override { return false; }
+};
+
+class Column : public InputHandler {
+public:
+  explicit Column(Table& table, std::shared_ptr<TableColumnBinding> binding,
+                  Container::ChildArrangement::ArrangementType arrangement, DisplayLength size,
+                  DisplayLength marginBefore, DisplayLength marginAfter);
   virtual ~Column() = default;
 
   Column(const Column&) = delete;
@@ -41,15 +76,17 @@ public:
   Column& operator=(const Column&) = delete;
   Column& operator=(Column&&) = delete;
 
-  Container::ArrangementType GetArrangement() const override { return _Arrangement; }
-  DisplayLength GetSize() const override { return _Size; }
-
-  void SetArrangement(Container::ArrangementType arrangement);
+  const Container::ChildArrangement& GetArrangement() const { return _Arrangement; }
+  DisplayLength GetSize() const { return _Size; }
   void SetSize(DisplayLength size);
+  std::shared_ptr<TableColumnBinding> GetBinding() const { return _Binding; }
+
+  bool OnKey(TermKeyCode key) override;
 
 private:
   Table& _Table;
-  Container::ArrangementType _Arrangement;
+  std::shared_ptr<TableColumnBinding> _Binding;
+  Container::ChildArrangement _Arrangement;
   DisplayLength _Size;
 };
 
@@ -64,10 +101,17 @@ template <typename... Columns> class ColumnBuilder : public ColumnBuilderInterfa
   }
 };
 
-class Row {
+class Row : public Container::Child, public Container {
 public:
-  explicit Row(Table& table, std::shared_ptr<TableBinding> binding,
-               const std::vector<std::shared_ptr<Column>>& columns);
+  // static Layout InitailSize(Container& parent, DisplayLength size) {
+  //   if (parent._Growth == GrowthType::Vertical) {
+  //     return {size, parent.GetLayout().Width};
+  //   } else {
+  //     return {parent.GetLayout().Height, size};
+  //   }
+  // }
+
+  explicit Row(Table& table, std::shared_ptr<TableRowBinding> binding, DisplayLength size);
   virtual ~Row() = default;
 
   Row(const Row&) = delete;
@@ -75,29 +119,29 @@ public:
   Row& operator=(const Row&) = delete;
   Row& operator=(Row&&) = delete;
 
-  void SetVisible(bool visible) { _RowContainer->SetVisible(visible); }
+  Container::ChildArrangement::ArrangementType GetArrangement() const override { return _Arrangement.GetArrangement(); }
+  DisplayLength GetSize() const override { return _Size; }
+  DisplayLength GetMarginBefore() const override { return _Arrangement.GetMarginBefore(); }
+  DisplayLength GetMarginAfter() const override { return _Arrangement.GetMarginAfter(); }
+  View& GetView() override { return *this; }
 
-  void CalculateLayout();
-  void MakeSimilarTo(const Row& other);
+  std::shared_ptr<TableRowBinding> GetBinding() const { return _Binding; }
+  auto GetCells() {
+    return std::views::transform(GetChildren(), [](std::shared_ptr<Container::Child> child) {
+      return std::dynamic_pointer_cast<TableCell>(child);
+    });
+  }
 
 private:
-  class RowContext : public Container::Context {
-  public:
-    explicit RowContext() = default;
-    ~RowContext() override = default;
-
-    Container::ArrangementType GetArrangement() const override { return Container::ArrangementType::Forward; }
-    DisplayLength GetSize() const override { return 1; }
-  };
-
-  static std::shared_ptr<const RowContext> GetRowContext();
-
-  const std::shared_ptr<Container> _RowContainer;
+  Table& _Table;
+  std::shared_ptr<TableRowBinding> _Binding;
+  Container::ChildArrangement _Arrangement;
+  DisplayLength _Size;
 };
 
-class Table {
+class Table : public Container {
 public:
-  explicit Table(std::shared_ptr<InputHandler> input, const ColumnBuilderInterface& columns);
+  explicit Table(InputHandler& input, TableCellFactory& cellFactory);
   ~Table() = default;
 
   Table(const Table&) = delete;
@@ -105,15 +149,23 @@ public:
   Table& operator=(const Table&) = delete;
   Table& operator=(Table&&) = delete;
 
-  std::shared_ptr<Container> GetTableContainer() const { return _TableContainer; }
-  void ColumnSizeChanged();
-  const std::vector<std::unique_ptr<Row>>& GetRows() const { return _Rows; }
-  Row& AppendRow(std::shared_ptr<TableBinding> binding);
+  bool OnKey(TermKeyCode key) override;
+  bool SetLayout(Layout offset, Layout layout) override;
+
+  void RearrangeLayout();
+  std::span<std::shared_ptr<Row>> GetRows() { return _Rows; }
+  std::shared_ptr<Row> AppendRow(std::shared_ptr<TableRowBinding> binding, DisplayLength size);
+
+  std::span<std::shared_ptr<Column>> GetColumns() { return _Columns; }
+  std::shared_ptr<Column> AppendColumn(std::shared_ptr<TableColumnBinding> binding,
+                                       Container::ChildArrangement::ArrangementType arrangement, DisplayLength size,
+                                       DisplayLength marginBefore, DisplayLength marginAfter);
 
 private:
-  const std::shared_ptr<Container> _TableContainer;
-  const std::vector<std::shared_ptr<Column>> _Columns;
-  std::vector<std::unique_ptr<Row>> _Rows;
+  InputHandler& _InputHandler;
+  TableCellFactory& _CellFactory;
+  std::vector<std::shared_ptr<Column>> _Columns;
+  std::vector<std::shared_ptr<Row>> _Rows;
 };
 
 } // namespace frontend::curses
