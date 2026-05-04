@@ -1,9 +1,7 @@
 #pragma once
 
 #include <memory>
-#include <vector>
 
-#include "../../backend/metrics/Gauge.hpp"
 #include "ProcessOrder.hpp"
 #include "layouts/Table.hpp"
 
@@ -12,6 +10,7 @@ namespace frontend::curses {
 class ProcessTree : public InputHandler, public TableCellFactory {
 public:
   explicit ProcessTree();
+  ~ProcessTree() override = default;
 
   class ProcessTreeTableRowBinding : public TableRowBinding {
   public:
@@ -46,19 +45,19 @@ public:
 
   void Update();
   bool OnKey(TermKeyCode key) override;
-  std::shared_ptr<backend::metrics::Gauge> GetCursor() const { return _Cursor; };
+
+  std::shared_ptr<Table> GetTable() { return _Table; }
 
 private:
   static constexpr DisplayLength _TableHeaderHeight = 1;
   DisplayLength GetHeight() const;
   auto GetDataRows() { return _Table->GetRows() | std::views::drop(1); }
-  void UpdateTable(const std::vector<std::shared_ptr<frontend::curses::Process>>& ps,
-                   std::span<std::shared_ptr<Row>> rows);
+  void UpdateTable(std::shared_ptr<frontend::curses::Process> selectedProcess,
+                   const std::vector<std::shared_ptr<frontend::curses::Process>>& ps);
   void MoveCursorAndDraw(DisplayLength offset);
 
   ProcessCollection _ProcessCollection;
   std::shared_ptr<Table> _Table;
-  std::shared_ptr<backend::metrics::SimpleGauge> _Cursor;
 };
 
 } // namespace frontend::curses

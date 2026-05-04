@@ -2,9 +2,9 @@
 
 #include <memory>
 #include <ranges> // C++20
-#include <span>
 #include <vector>
 
+#include "../../../backend/metrics/SimplePublisher.hpp"
 #include "Container.hpp"
 #include "View.hpp"
 
@@ -34,12 +34,10 @@ public:
   DisplayLength GetMarginAfter() const override;
   View& GetView() override { return *_View; }
 
-  std::shared_ptr<Row> GetRow() { return _Row; }
-  std::shared_ptr<Column> GetColumn() { return _Column; }
   std::shared_ptr<TableCellBinding> GetBinding() { return _Binding; }
+  void ResetBinding() { _Binding.reset(); }
 
 private:
-  std::shared_ptr<Row> _Row;
   std::shared_ptr<Column> _Column;
   std::shared_ptr<TableCellBinding> _Binding;
   std::shared_ptr<View> _View;
@@ -83,9 +81,12 @@ public:
   DisplayLength GetSize() const { return _Size; }
   void SetSize(DisplayLength size);
   std::shared_ptr<TableColumnBinding> GetBinding() const { return _Binding; }
+  void ResetBinding() { _Binding.reset(); }
 
   bool OnKey(TermKeyCode key) override;
 
+  // The corresponding table cells will be removed at row's DrawPrepare
+  // The column will be removed at table's DrawPrepare
   void MarkForDeletion() { _MarkForDeletion = true; }
   bool IsMarkForDeletion() const { return _MarkForDeletion; }
 
@@ -125,6 +126,7 @@ public:
   View& GetView() override { return *this; }
 
   std::shared_ptr<TableRowBinding> GetBinding() const { return _Binding; }
+  void ResetBinding() { _Binding.reset(); }
   auto GetCells() {
     return GetChildren() |
            std::views::transform([](auto child) { return std::dynamic_pointer_cast<TableCell>(child); });
@@ -140,7 +142,7 @@ private:
 class Table : public Container {
 public:
   explicit Table(InputHandler& input, TableCellFactory& cellFactory);
-  ~Table() = default;
+  ~Table() override;
 
   Table(const Table&) = delete;
   Table(Table&&) = delete;
@@ -148,16 +150,20 @@ public:
   Table& operator=(Table&&) = delete;
 
   bool OnKey(TermKeyCode key) override;
-  bool SetLayout(Layout offset, Layout layout) override;
+  void DrawPrepare(const UpdateContext& attrs) override;
 
   void CalculateLayout();
 
   auto GetRows() {
-    return GetChildren() | std::views::filter([](auto child) { return !child->IsMarkForDeletion(); }) |
-           std::views::transform([](auto child) { return std::dynamic_pointer_cast<Row>(child); });
+    return GetChildren() | std::views::transform([](auto child) { return std::dynamic_pointer_cast<Row>(child); });
   }
   std::shared_ptr<Row> AppendRow(std::shared_ptr<TableRowBinding> binding, DisplayLength size);
-  std::shared_ptr<Row> GetCursorRow() const { return _CursorRow; }
+  void SetCursorRow(std::shared_ptr<Row> row) { _CursorRow->Update(row); }
+  std::shared_ptr<Row> GetCursorRow() const { return _CursorRow->GetValue(); }
+  template <typename Callback>
+  std::shared_ptr<backend::metrics::SubscriberBase> OnCursorRowUpdate(Callback&& callback) {
+    return backend::metrics::MakeSubscriber(_CursorRow, std::forward<Callback>(callback));
+  }
   std::shared_ptr<Row> NextRow(const std::shared_ptr<Row>& row);
   std::shared_ptr<Row> PrevRow(const std::shared_ptr<Row>& row);
 
@@ -167,7 +173,12 @@ public:
   std::shared_ptr<Column> AppendColumn(std::shared_ptr<TableColumnBinding> binding,
                                        Container::ChildArrangement::ArrangementType arrangement, DisplayLength size,
                                        DisplayLength marginBefore, DisplayLength marginAfter);
-  std::shared_ptr<Column> GetCursorColumn() const { return _CursorColumn; }
+  void SetCursorColumn(std::shared_ptr<Column> column) { _CursorColumn->Update(column); }
+  std::shared_ptr<Column> GetCursorColumn() const { return _CursorColumn->GetValue(); }
+  template <typename Callback>
+  std::shared_ptr<backend::metrics::SubscriberBase> OnCursorColumnUpdate(Callback&& callback) {
+    return backend::metrics::MakeSubscriber(_CursorColumn, std::forward<Callback>(callback));
+  }
   std::shared_ptr<Column> NextColumn(const std::shared_ptr<Column>& column);
   std::shared_ptr<Column> PrevColumn(const std::shared_ptr<Column>& column);
 
@@ -175,8 +186,8 @@ private:
   InputHandler& _InputHandler;
   TableCellFactory& _CellFactory;
   std::vector<std::shared_ptr<Column>> _Columns;
-  std::shared_ptr<Row> _CursorRow;
-  std::shared_ptr<Column> _CursorColumn;
+  std::shared_ptr<backend::metrics::SimplePublisher<std::shared_ptr<Row>>> _CursorRow;
+  std::shared_ptr<backend::metrics::SimplePublisher<std::shared_ptr<Column>>> _CursorColumn;
 };
 
 } // namespace frontend::curses

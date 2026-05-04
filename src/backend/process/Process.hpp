@@ -10,23 +10,10 @@ namespace backend::process {
 
 class Process {
 public:
-  explicit Process(const std::filesystem::path& dir) : _ProcDirPath(dir) {}
-  ~Process() = default;
+  static const std::chrono::steady_clock::time_point EPOCH;
 
-  using GaugePtr = std::shared_ptr<backend::metrics::Gauge>;
-  static GaugePtr GetState(std::shared_ptr<Process> me) { return me->GetGauge(me, &Process::_State); }
-  static GaugePtr GetMem(std::shared_ptr<Process> me) { return me->GetGauge(me, &Process::_Mem); }
-  static GaugePtr GetUserTime(std::shared_ptr<Process> me) { return me->GetGauge(me, &Process::_UserTime); }
-  static GaugePtr GetSystemTime(std::shared_ptr<Process> me) { return me->GetGauge(me, &Process::_SystemTime); }
-  static GaugePtr GetReadBytes(std::shared_ptr<Process> me) { return me->GetGauge(me, &Process::_ReadBytes); }
-  static GaugePtr GetWriteBytes(std::shared_ptr<Process> me) { return me->GetGauge(me, &Process::_WriteBytes); }
-  static GaugePtr GetReadCalls(std::shared_ptr<Process> me) { return me->GetGauge(me, &Process::_ReadCalls); }
-  static GaugePtr GetWriteCalls(std::shared_ptr<Process> me) { return me->GetGauge(me, &Process::_WriteCalls); }
-  static GaugePtr GetDiskReadBytes(std::shared_ptr<Process> me) { return me->GetGauge(me, &Process::_DiskReadBytes); }
-  static GaugePtr GetDiskWriteBytes(std::shared_ptr<Process> me) { return me->GetGauge(me, &Process::_DiskWriteBytes); }
-  static GaugePtr GetDiskCancelledWriteBytes(std::shared_ptr<Process> me) {
-    return me->GetGauge(me, &Process::_DiskCancelledWriteBytes);
-  }
+  explicit Process(const std::filesystem::path& dir);
+  ~Process() = default;
 
   void Update();
 
@@ -37,6 +24,19 @@ public:
   std::string GetCommand() const { return _Info.comm; }
   std::chrono::steady_clock::time_point GetStartTime() const { return _StartTime; }
   std::string GetCommandLine() const;
+
+  using GaugePtr = std::shared_ptr<backend::metrics::Gauge>;
+  GaugePtr GetState() { return _State; }
+  GaugePtr GetMem() { return _Mem; }
+  GaugePtr GetUserTime() { return _UserTime; }
+  GaugePtr GetSystemTime() { return _SystemTime; }
+  GaugePtr GetReadBytes() { return _ReadBytes; }
+  GaugePtr GetWriteBytes() { return _WriteBytes; }
+  GaugePtr GetReadCalls() { return _ReadCalls; }
+  GaugePtr GetWriteCalls() { return _WriteCalls; }
+  GaugePtr GetDiskReadBytes() { return _DiskReadBytes; }
+  GaugePtr GetDiskWriteBytes() { return _DiskWriteBytes; }
+  GaugePtr GetDiskCancelledWriteBytes() { return _DiskCancelledWriteBytes; }
 
 private:
   struct ProcessInfo {
@@ -50,32 +50,21 @@ private:
 
   class ProcessGauge : public metrics::Gauge {
   public:
-    explicit ProcessGauge(std::shared_ptr<Process> owner) : _Owner(owner), _Value(0), _First(true) {}
+    explicit ProcessGauge(Process& owner) : _Owner(owner), _Value(0) {}
 
     void SetValue(metrics::DataType value) {
       _Value = value;
-      _First = false;
       Notify();
     }
 
-    std::chrono::steady_clock::time_point GetLastUpdate() const override {
-      if (!_First) {
-        return _Owner->_LastUpdate;
-      } else {
-        return _Owner->_StartTime;
-      }
-    }
+    std::chrono::steady_clock::time_point GetLastUpdate() const override { return _Owner._LastUpdate; }
     metrics::DataType GetValue() const override { return _Value; }
 
   private:
     friend class Process;
-    std::shared_ptr<Process> _Owner;
+    Process& _Owner;
     metrics::DataType _Value;
-    bool _First;
   };
-
-  using GaugeMember = std::weak_ptr<ProcessGauge> Process::*;
-  static std::shared_ptr<metrics::Gauge> GetGauge(std::shared_ptr<Process> me, GaugeMember member);
 
   const std::filesystem::path _ProcDirPath;
   std::chrono::steady_clock::time_point _LastUpdate;
@@ -85,19 +74,19 @@ private:
   std::chrono::steady_clock::time_point _StartTime;
 
   // Metrics from stat file
-  std::weak_ptr<ProcessGauge> _State;
-  std::weak_ptr<ProcessGauge> _Mem;
-  std::weak_ptr<ProcessGauge> _UserTime;
-  std::weak_ptr<ProcessGauge> _SystemTime;
+  std::shared_ptr<ProcessGauge> _State;
+  std::shared_ptr<ProcessGauge> _Mem;
+  std::shared_ptr<ProcessGauge> _UserTime;
+  std::shared_ptr<ProcessGauge> _SystemTime;
 
   // Metrics from io file
-  std::weak_ptr<ProcessGauge> _ReadBytes;
-  std::weak_ptr<ProcessGauge> _WriteBytes;
-  std::weak_ptr<ProcessGauge> _ReadCalls;
-  std::weak_ptr<ProcessGauge> _WriteCalls;
-  std::weak_ptr<ProcessGauge> _DiskReadBytes;
-  std::weak_ptr<ProcessGauge> _DiskWriteBytes;
-  std::weak_ptr<ProcessGauge> _DiskCancelledWriteBytes;
+  std::shared_ptr<ProcessGauge> _ReadBytes;
+  std::shared_ptr<ProcessGauge> _WriteBytes;
+  std::shared_ptr<ProcessGauge> _ReadCalls;
+  std::shared_ptr<ProcessGauge> _WriteCalls;
+  std::shared_ptr<ProcessGauge> _DiskReadBytes;
+  std::shared_ptr<ProcessGauge> _DiskWriteBytes;
+  std::shared_ptr<ProcessGauge> _DiskCancelledWriteBytes;
 };
 
 } // namespace backend::process

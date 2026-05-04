@@ -75,48 +75,40 @@ std::shared_ptr<Process> ProcessCollection::MoveCursor(std::shared_ptr<Process> 
   }
 }
 
+std::shared_ptr<Process> ProcessCollection::GetValidAncestor(std::shared_ptr<Process> process) {
+  // Move cursor to ancestor if the process is exited
+  auto selection = Process::GetAncestors(process);
+  return *std::find_if(selection.rbegin(), selection.rend(), [](auto p) { return p->Exists(); });
+}
+
 std::vector<std::shared_ptr<Process>> ProcessCollection::GetTopK(size_t k) {
   std::vector<std::shared_ptr<Process>> result(k);
   auto [_, end] = std::ranges::partial_sort_copy(_ProcessCache | std::views::values, result, ProcessOrderTree());
   return {result.begin(), end};
 }
 
-std::vector<std::shared_ptr<Process>>
-ProcessCollection::GetAround(std::shared_ptr<Process> process, DisplayLength& cursor, DisplayLength max, bool update) {
-  auto at = [&] {
-    if (update) {
-      auto selection = Process::GetAncestors(process);
-      UpdateList();
-      auto at = *std::find_if(selection.rbegin(), selection.rend(), [](auto p) { return p->Exists(); });
-      assert(at); // The cursor should point to this process.
-      return at;
-    } else {
-      return process;
-    }
-  }();
-
+std::vector<std::shared_ptr<Process>> ProcessCollection::GetAround(std::shared_ptr<Process> process,
+                                                                   DisplayLength index, DisplayLength max) {
   if (_ProcessCache.size() <= max) {
     auto range = _ProcessCache | std::views::values;
     std::vector<std::shared_ptr<Process>> result(range.begin(), range.end());
     std::ranges::sort(result, ProcessOrderTree());
-    auto it = std::lower_bound(result.begin(), result.end(), at, ProcessOrderTree());
+    auto it = std::lower_bound(result.begin(), result.end(), process, ProcessOrderTree());
     assert(it != result.end());
-    cursor = it - result.begin();
     return result;
   } else {
     // Count how many processes are before and after the selected process.
     // The selected process itself is not counted.
     DisplayLength countBefore =
-        std::ranges::count_if(_ProcessCache, [&](auto& p) { return ProcessOrderTree()(p.second, at); });
+        std::ranges::count_if(_ProcessCache, [&](auto& p) { return ProcessOrderTree()(p.second, process); });
     DisplayLength countAfter = _ProcessCache.size() - countBefore - 1;
 
     // The countBefore and countAfter variables are now the number of processes before and after the selected process,
     // but they might be too large, because the cursor might be at the beginning or end of the list.
     // The std::min() calls below ensure that the counts never exceed the maximum number of processes that can be
     // displayed.
-    auto before = std::min(countBefore, std::max(cursor, max - countAfter - 1));
-    auto after = std::min(countAfter, std::max(max - cursor - 1, max - countBefore - 1));
-    cursor = before;
+    auto before = std::min(countBefore, std::max(index, max - countAfter - 1));
+    auto after = std::min(countAfter, std::max(max - index - 1, max - countBefore - 1));
 
     // The result vector will contain the processes that will be displayed, including the selected process.
     // We need to allocate space for the maximum number of processes that can be displayed,
@@ -135,19 +127,16 @@ ProcessCollection::GetAround(std::shared_ptr<Process> process, DisplayLength& cu
 
     // Copy the processes that are before the selected process into the beginning of the result vector.
     std::ranges::partial_sort_copy(
-        _ProcessCache | std::views::values | std::views::filter([&](auto p) { return ProcessOrderTree()(p, at); }),
+        _ProcessCache | std::views::values | std::views::filter([&](auto p) { return ProcessOrderTree()(p, process); }),
         std::span(result.begin(), result.begin() + before) | std::views::reverse, std::not_fn(ProcessOrderTree()));
 
     // Copy the processes that are after the selected process into the end of the result vector.
     std::ranges::partial_sort_copy(_ProcessCache | std::views::values |
-                                       std::views::filter([&](auto p) { return !ProcessOrderTree()(p, at); }),
+                                       std::views::filter([&](auto p) { return !ProcessOrderTree()(p, process); }),
                                    std::span(result.begin() + before, result.end()), ProcessOrderTree());
 
     return result;
   }
-
-  std::vector<std::shared_ptr<Process>> result;
-  return result;
 }
 
 } // namespace frontend::curses

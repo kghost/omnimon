@@ -9,6 +9,9 @@
 
 namespace frontend::curses {
 
+Attrs::Attrs() : attrs(A_NORMAL) {}
+UpdateContext::UpdateContext(WINDOW* win) : Win(win), attrs(A_NORMAL) {}
+
 Curses::SigWinChange::SigWinChange(EventLoop& loop, Curses& curses) : EventSignal(loop, SIGWINCH), _Curses(curses) {}
 void Curses::SigWinChange::OnSignal(SigNumType signum) { _Curses.HandleWinChangeSignal(); }
 

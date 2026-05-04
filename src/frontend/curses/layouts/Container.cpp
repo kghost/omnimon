@@ -28,7 +28,7 @@ void Container::DrawPrepare(const UpdateContext& attrs) {
   // previous content.
   auto my = attrs.MergeWith(_Visible);
   for (auto& child : _Children) {
-    child->GetView().DrawPrepare(my);
+    child->DrawPrepare(my);
   }
 
   // Remove marked for deletion children
@@ -66,9 +66,7 @@ void Container::MakeSimilarTo(Container& other) {
 
   assert(_Growth == other._Growth);
 
-  for (int i = 0; i < myChildren.size(); i++) {
-    auto& myChild = _Children[i];
-    auto& yourChild = other._Children[i];
+  for (auto [myChild, yourChild] : std::views::zip(myChildren, yourChildren)) {
     assert(myChild->GetArrangement() == yourChild->GetArrangement());
     assert(myChild->GetMarginBefore() == yourChild->GetMarginBefore());
     assert(myChild->GetSize() == yourChild->GetSize());

@@ -2,6 +2,7 @@
 #include "Container.hpp"
 #include "View.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <memory>
 #include <vector>
@@ -10,7 +11,7 @@ namespace frontend::curses {
 
 TableCell::TableCell(std::shared_ptr<Row> row, std::shared_ptr<Column> column,
                      std::shared_ptr<TableCellBinding> binding)
-    : _Row(row), _Column(column), _Binding(binding), _View(binding->CreateView(row, column)) {}
+    : _Column(column), _Binding(binding), _View(binding->CreateView(row, column)) {}
 
 Container::ChildArrangement::ArrangementType TableCell::GetArrangement() const {
   return _Column->GetArrangement().GetArrangement();
@@ -34,39 +35,38 @@ bool Column::OnKey(TermKeyCode key) { return false; }
 
 Row::Row(Table& table, std::shared_ptr<TableRowBinding> binding, DisplayLength size)
     : _Table(table), _Arrangement(Container::ChildArrangement::ArrangementType::Forward, 0, 0), _Binding(binding),
-      _Size(size), Container(Container::GrowthType::Horizontal) {
-  // for (auto& column : columns) {
-  //   // Create a new column instance for this row that shares the same layout info
-  //   // But wait, Column is already a Child. We should probably create a new one
-  //   // or make Column a factory.
-  //   // Actually, the 'columns' passed in are the master columns from the table.
-  //   // We should create a new Column child for this Row.
-  //   auto rowColumn = std::make_shared<Column>(table, column->GetArrangement(), column->GetSize());
-  //   auto cell = _Binding->OnNewCell(table, *this, *rowColumn);
-  //   rowColumn->BindCell(cell);
-  //   AppendChild(rowColumn);
-  // }
-}
+      _Size(size), Container(Container::GrowthType::Horizontal) {}
 
 Table::Table(InputHandler& input, TableCellFactory& cellFactory)
-    : Container(Container::GrowthType::Vertical), _InputHandler(input), _CellFactory(cellFactory) {}
+    : Container(Container::GrowthType::Vertical), _InputHandler(input), _CellFactory(cellFactory),
+      _CursorRow(std::make_shared<backend::metrics::SimplePublisher<std::shared_ptr<Row>>>()),
+      _CursorColumn(std::make_shared<backend::metrics::SimplePublisher<std::shared_ptr<Column>>>()) {}
+
+Table::~Table() {
+  // Clear all bindings
+  for (auto column : _Columns) {
+    column->ResetBinding();
+  }
+
+  for (auto row : GetRows()) {
+    row->ResetBinding();
+    for (auto cell : row->GetChildren()) {
+      std::dynamic_pointer_cast<TableCell>(cell)->ResetBinding();
+    }
+  }
+}
 
 bool Table::OnKey(TermKeyCode key) { return _InputHandler.OnKey(key); }
 
-bool Table::SetLayout(Layout offset, Layout layout) { return Container::SetLayout(offset, layout); }
+void Table::DrawPrepare(const UpdateContext& attrs) {
+  Container::DrawPrepare(attrs);
+  std::erase_if(_Columns, [](auto column) { return column->IsMarkForDeletion(); });
+}
 
 void Table::CalculateLayout() {
   auto rows = GetRows();
   if (rows.empty()) {
     return;
-  }
-
-  for (auto row : rows) {
-    for (auto cell : row->GetCells()) {
-      if (cell->GetColumn()->IsMarkForDeletion()) {
-        cell->MarkForDeletion();
-      }
-    }
   }
 
   auto row1 = *rows.begin();
@@ -94,6 +94,28 @@ std::shared_ptr<Column> Table::AppendColumn(std::shared_ptr<TableColumnBinding> 
     row->AppendChild(std::make_shared<TableCell>(row, column, _CellFactory.NewCell(*this, row, column)));
   }
   return column;
+}
+
+template <typename T> std::shared_ptr<T> FindNext(std::ranges::view auto collection, std::shared_ptr<T> target) {
+  auto it = std::ranges::find(collection, target);
+  if (it == collection.end() || std::next(it) == collection.end()) {
+    return nullptr;
+  }
+  return *std::next(it);
+}
+
+std::shared_ptr<Row> Table::NextRow(const std::shared_ptr<Row>& row) { return FindNext(GetRows(), row); }
+
+std::shared_ptr<Row> Table::PrevRow(const std::shared_ptr<Row>& row) {
+  return FindNext(GetRows() | std::views::reverse, row);
+}
+
+std::shared_ptr<Column> Table::NextColumn(const std::shared_ptr<Column>& column) {
+  return FindNext(GetColumns(), column);
+}
+
+std::shared_ptr<Column> Table::PrevColumn(const std::shared_ptr<Column>& column) {
+  return FindNext(GetColumns() | std::views::reverse, column);
 }
 
 } // namespace frontend::curses

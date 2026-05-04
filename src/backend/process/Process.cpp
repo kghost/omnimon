@@ -12,6 +12,17 @@
 
 namespace backend::process {
 
+const std::chrono::steady_clock::time_point Process::EPOCH;
+
+Process::Process(const std::filesystem::path& dir)
+    : _ProcDirPath(dir), _StartTime(EPOCH), _State(std::make_shared<ProcessGauge>(*this)),
+      _Mem(std::make_shared<ProcessGauge>(*this)), _UserTime(std::make_shared<ProcessGauge>(*this)),
+      _SystemTime(std::make_shared<ProcessGauge>(*this)), _ReadBytes(std::make_shared<ProcessGauge>(*this)),
+      _WriteBytes(std::make_shared<ProcessGauge>(*this)), _ReadCalls(std::make_shared<ProcessGauge>(*this)),
+      _WriteCalls(std::make_shared<ProcessGauge>(*this)), _DiskReadBytes(std::make_shared<ProcessGauge>(*this)),
+      _DiskWriteBytes(std::make_shared<ProcessGauge>(*this)),
+      _DiskCancelledWriteBytes(std::make_shared<ProcessGauge>(*this)) {}
+
 void Process::Update() {
   ParseStatFile();
   if (_Exists) {
@@ -97,25 +108,22 @@ void Process::ParseStatFile() {
       ps.cminflt >> ps.majflt >> ps.cmajflt >> ps.utime >> ps.stime >> ps.cutime >> ps.cstime >> ps.priority >>
       ps.nice >> ps.num_threads >> ps.itrealvalue >> ps.starttime >> ps.vsize >> ps.rss;
 
-  _StartTime = utils::JiffyToClock(ps.starttime);
+  auto time = utils::JiffyToClock(ps.starttime);
+  if (_StartTime == Process::EPOCH) {
+    _StartTime = time;
+  } else {
+    if (_StartTime != time) {
+      // This is a new process with the same PID
+      // TODO: reset metrics
+    }
+  }
   _LastUpdate = std::chrono::steady_clock::now();
   _Exists = true;
 
-  if (auto ptr = _State.lock()) {
-    ptr->SetValue(ps.state);
-  }
-
-  if (auto ptr = _Mem.lock()) {
-    ptr->SetValue(ps.rss);
-  }
-
-  if (auto ptr = _UserTime.lock()) {
-    ptr->SetValue(ps.utime);
-  }
-
-  if (auto ptr = _SystemTime.lock()) {
-    ptr->SetValue(ps.stime);
-  }
+  _State->SetValue(ps.state);
+  _Mem->SetValue(ps.rss);
+  _UserTime->SetValue(ps.utime);
+  _SystemTime->SetValue(ps.stime);
 }
 
 void Process::ParseIoFile() {
@@ -145,44 +153,20 @@ void Process::ParseIoFile() {
     metrics::DataType value = std::stoll(match[2].str());
 
     if (key == "rchar") {
-      if (auto ptr = _ReadBytes.lock()) {
-        ptr->SetValue(value);
-      }
+      _ReadBytes->SetValue(value);
     } else if (key == "wchar") {
-      if (auto ptr = _WriteBytes.lock()) {
-        ptr->SetValue(value);
-      }
+      _WriteBytes->SetValue(value);
     } else if (key == "syscr") {
-      if (auto ptr = _ReadCalls.lock()) {
-        ptr->SetValue(value);
-      }
+      _ReadCalls->SetValue(value);
     } else if (key == "syscw") {
-      if (auto ptr = _WriteCalls.lock()) {
-        ptr->SetValue(value);
-      }
+      _WriteCalls->SetValue(value);
     } else if (key == "read_bytes") {
-      if (auto ptr = _DiskReadBytes.lock()) {
-        ptr->SetValue(value);
-      }
+      _DiskReadBytes->SetValue(value);
     } else if (key == "write_bytes") {
-      if (auto ptr = _DiskWriteBytes.lock()) {
-        ptr->SetValue(value);
-      }
+      _DiskWriteBytes->SetValue(value);
     } else if (key == "cancelled_write_bytes") {
-      if (auto ptr = _DiskCancelledWriteBytes.lock()) {
-        ptr->SetValue(value);
-      }
+      _DiskCancelledWriteBytes->SetValue(value);
     }
-  }
-}
-
-std::shared_ptr<metrics::Gauge> Process::GetGauge(std::shared_ptr<Process> me, GaugeMember member) {
-  if (auto result = (me.get()->*member).lock()) {
-    return result;
-  } else {
-    result = std::make_shared<ProcessGauge>(me);
-    (me.get()->*member) = result;
-    return result;
   }
 }
 

@@ -72,8 +72,13 @@ public:
       explicit CellBinding(ProcessTree& tree, std::shared_ptr<ProcessTree::ProcessTreeTableDataBinding> row)
           : _Tree(tree), _Row(row), _View(std::make_shared<TextView>(TextView::Align::Left)) {}
       std::shared_ptr<View> CreateView(std::shared_ptr<Row> row, std::shared_ptr<Column> column) override {
-        _CursorUpdater = backend::metrics::MakeSubscriber(_Tree.GetCursor(), [this](auto metric) {
-          _View->SetText(metric->GetValue() == _Row->GetIndex() ? "⮚" : "");
+        _CursorUpdater = _Tree.GetTable()->OnCursorRowUpdate([this](auto data) {
+          auto selectedRow = data->GetValue();
+          if (selectedRow && selectedRow->GetBinding() == _Row) {
+            _View->SetText("⮚");
+          } else {
+            _View->SetText("");
+          }
         });
         return _View;
       }
@@ -137,7 +142,7 @@ public:
       void OnRowBindingChanged() override {
         auto process = _Row->GetProcess();
         if (process) {
-          _StateUpdater = backend::metrics::MakeSubscriber(Process::GetState(process), [this](auto metric) {
+          _StateUpdater = backend::metrics::MakeSubscriber(process->GetState(), [this](auto metric) {
             _View->SetText(std::format("{:c}", static_cast<char>(metric->GetValue())));
           });
         } else {
@@ -172,8 +177,7 @@ public:
           _CpuUpdater = backend::metrics::MakeSubscriber(
               std::make_shared<backend::metrics::Ratio>(
                   std::make_shared<backend::metrics::CounterSlice>(
-                      std::make_shared<backend::metrics::Plus>(Process::GetUserTime(process),
-                                                               Process::GetSystemTime(process)),
+                      std::make_shared<backend::metrics::Plus>(process->GetUserTime(), process->GetSystemTime()),
                       Config::GetInstance().RefreshInterval),
                   backend::system::SysInfo::GetInstance()->GetSystemJiffies()),
               [this](auto metric) { _View->SetText(std::format("{:.{}f}", metric->GetValue() / 100.0f, 1)); });
@@ -207,7 +211,7 @@ public:
         auto process = _Row->GetProcess();
         if (process) {
           _MemUpdater = backend::metrics::MakeSubscriber(
-              std::make_shared<backend::metrics::Ratio>(Process::GetMem(process),
+              std::make_shared<backend::metrics::Ratio>(process->GetMem(),
                                                         backend::system::SysInfo::GetInstance()->GetTotalMem()),
               [this](auto metric) { _View->SetText(std::format("{:.{}f}", metric->GetValue() / 100.0f, 1)); });
         } else {
@@ -240,7 +244,7 @@ public:
         auto process = _Row->GetProcess();
         if (process) {
           _TimeUpdater = backend::metrics::MakeSubscriber(
-              std::make_shared<backend::metrics::Plus>(Process::GetUserTime(process), Process::GetSystemTime(process)),
+              std::make_shared<backend::metrics::Plus>(process->GetUserTime(), process->GetSystemTime()),
               [this](auto metric) {
                 auto text =
                     std::format("{:%H:%M:%S}",
@@ -280,7 +284,7 @@ public:
         auto process = _Row->GetProcess();
         if (process) {
           _DiskReadUpdater = backend::metrics::MakeSubscriber(
-              std::make_shared<backend::metrics::CounterSlice>(Process::GetDiskReadBytes(process),
+              std::make_shared<backend::metrics::CounterSlice>(process->GetDiskReadBytes(),
                                                                Config::GetInstance().RefreshInterval),
               [this](auto metric) { _View->SetText(utils::DiskSizeToString(metric->GetValue(), 5)); });
         } else {
@@ -313,7 +317,7 @@ public:
         auto process = _Row->GetProcess();
         if (process) {
           _DiskWriteUpdater = backend::metrics::MakeSubscriber(
-              std::make_shared<backend::metrics::CounterSlice>(Process::GetDiskWriteBytes(process),
+              std::make_shared<backend::metrics::CounterSlice>(process->GetDiskWriteBytes(),
                                                                Config::GetInstance().RefreshInterval),
               [this](auto metric) { _View->SetText(utils::DiskSizeToString(metric->GetValue(), 5)); });
         } else {
@@ -346,8 +350,7 @@ public:
         auto process = _Row->GetProcess();
         if (process) {
           _DiskAccumulatedUpdater = backend::metrics::MakeSubscriber(
-              std::make_shared<backend::metrics::Plus>(Process::GetDiskReadBytes(process),
-                                                       Process::GetDiskWriteBytes(process)),
+              std::make_shared<backend::metrics::Plus>(process->GetDiskReadBytes(), process->GetDiskWriteBytes()),
               [this](auto metric) { _View->SetText(utils::DiskSizeToString(metric->GetValue(), 5)); });
         } else {
           _DiskAccumulatedUpdater.reset();
@@ -380,8 +383,7 @@ public:
         if (process) {
           _IOUpdater = backend::metrics::MakeSubscriber(
               std::make_shared<backend::metrics::CounterSlice>(
-                  std::make_shared<backend::metrics::Plus>(Process::GetReadBytes(process),
-                                                           Process::GetWriteBytes(process)),
+                  std::make_shared<backend::metrics::Plus>(process->GetReadBytes(), process->GetWriteBytes()),
                   Config::GetInstance().RefreshInterval),
               [this](auto metric) { _View->SetText(utils::DiskSizeToString(metric->GetValue(), 5)); });
         } else {
@@ -414,7 +416,7 @@ public:
         auto process = _Row->GetProcess();
         if (process) {
           _IOAccumulatedUpdater = backend::metrics::MakeSubscriber(
-              std::make_shared<backend::metrics::Plus>(Process::GetReadBytes(process), Process::GetWriteBytes(process)),
+              std::make_shared<backend::metrics::Plus>(process->GetReadBytes(), process->GetWriteBytes()),
               [this](auto metric) { _View->SetText(utils::DiskSizeToString(metric->GetValue(), 5)); });
         } else {
           _IOAccumulatedUpdater.reset();
@@ -543,8 +545,7 @@ public:
   }
 };
 
-ProcessTree::ProcessTree()
-    : _Table(std::make_shared<Table>(*this, *this)), _Cursor(std::make_shared<backend::metrics::SimpleGauge>()) {
+ProcessTree::ProcessTree() : _Table(std::make_shared<Table>(*this, *this)) {
   constexpr const auto Forward = Container::ChildArrangement::ArrangementType::Forward;
   constexpr const auto FillRest = Container::ChildArrangement::ArrangementType::FillRest;
   _Table->AppendColumn(std::make_shared<ProcessColumnCursor>(), Forward, 1, 0, 0);
@@ -571,17 +572,22 @@ std::shared_ptr<TableCellBinding> ProcessTree::NewCell(Table& table, std::shared
 }
 
 void ProcessTree::Update() {
-  std::vector<std::shared_ptr<frontend::curses::Process>> ps;
-  auto rows = GetDataRows();
-  if (rows.size() > 0) {
-    DisplayLength index = _Cursor->GetValue();
-    auto binding = std::dynamic_pointer_cast<ProcessTreeTableDataBinding>(rows[index]->GetBinding());
-    ps = _ProcessCollection.GetAround(binding->GetProcess(), index, GetHeight(), true);
+  auto cursor = _Table->GetCursorRow();
+  if (cursor) {
+    _ProcessCollection.UpdateList();
+    auto binding = std::dynamic_pointer_cast<ProcessTreeTableDataBinding>(cursor->GetBinding());
+    auto selectedProcess = _ProcessCollection.GetValidAncestor(binding->GetProcess());
+    auto ps = _ProcessCollection.GetAround(selectedProcess, binding->GetIndex(), GetHeight());
+    UpdateTable(selectedProcess, ps);
   } else {
     _ProcessCollection.UpdateList();
-    ps = _ProcessCollection.GetTopK(GetHeight());
+    auto ps = _ProcessCollection.GetTopK(GetHeight());
+    if (!ps.empty()) {
+      UpdateTable(ps[0], ps);
+    } else {
+      UpdateTable(nullptr, ps);
+    }
   }
-  UpdateTable(ps, rows);
 }
 
 DisplayLength ProcessTree::GetHeight() const {
@@ -593,51 +599,74 @@ DisplayLength ProcessTree::GetHeight() const {
   }
 }
 
-void ProcessTree::UpdateTable(const std::vector<std::shared_ptr<frontend::curses::Process>>& ps,
-                              std::span<std::shared_ptr<Row>> rows) {
-  int max = std::max(ps.size(), rows.size());
-
-  for (int i = 0; i < max; ++i) {
-    if (i < ps.size() && i < rows.size()) {
-      auto& row = rows[i];
+void ProcessTree::UpdateTable(std::shared_ptr<frontend::curses::Process> selectedProcess,
+                              const std::vector<std::shared_ptr<frontend::curses::Process>>& ps) {
+  auto rows = GetDataRows();
+  int i = 0;
+  for (auto row : rows) {
+    if (i < ps.size()) {
       auto binding = std::dynamic_pointer_cast<ProcessTreeTableDataBinding>(row->GetBinding());
-      binding->UpdateProcess(row, ps[i]);
-    } else if (i >= ps.size() && i < rows.size()) {
-      // Remove the row
-      auto& row = rows[i];
+      auto process = ps[i];
+      if (selectedProcess == process) {
+        _Table->SetCursorRow(row);
+      }
+      binding->UpdateProcess(row, process);
+    } else {
       row->MarkForDeletion();
       auto binding = std::dynamic_pointer_cast<ProcessTreeTableDataBinding>(row->GetBinding());
       binding->UpdateProcess(row, nullptr);
-    } else if (i < ps.size() && i >= rows.size()) {
-      // Add new row
-      auto binding = std::make_shared<ProcessTreeTableDataBinding>(i, ps[i]);
-      _Table->AppendRow(binding, 1);
-      ps[i]->Update();
     }
+    i++;
+  }
+
+  while (i < ps.size()) {
+    auto binding = std::make_shared<ProcessTreeTableDataBinding>(i, ps[i]);
+    auto row = _Table->AppendRow(binding, 1);
+    if (selectedProcess == ps[i]) {
+      _Table->SetCursorRow(row);
+    }
+    i++;
   }
 }
 
 bool ProcessTree::OnKey(TermKeyCode key) {
-  auto rows = GetDataRows();
+  auto row = _Table->GetCursorRow();
+  if (row == nullptr) {
+    return false;
+  }
 
   // Move cursor of selected row
   switch (key) {
-  case KEY_UP:
-    if (_Cursor->GetValue() > 0) {
-      _Cursor->Update(_Cursor->GetValue() - 1);
+  case KEY_UP: {
+    auto prev = _Table->PrevRow(row);
+    if (prev != nullptr) {
+      auto prevBinding = std::dynamic_pointer_cast<ProcessTreeTableDataBinding>(prev->GetBinding());
+      if (prevBinding != nullptr) {
+        _Table->SetCursorRow(prev);
+      } else {
+        MoveCursorAndDraw(-1);
+      }
     } else {
       MoveCursorAndDraw(-1);
     }
     OmniMon::GetInstance().ScheduleDraw();
     return true;
-  case KEY_DOWN:
-    if (_Cursor->GetValue() < rows.size() - 1) {
-      _Cursor->Update(_Cursor->GetValue() + 1);
+  }
+  case KEY_DOWN: {
+    auto next = _Table->NextRow(row);
+    if (next != nullptr) {
+      auto nextBinding = std::dynamic_pointer_cast<ProcessTreeTableDataBinding>(next->GetBinding());
+      if (nextBinding != nullptr) {
+        _Table->SetCursorRow(next);
+      } else {
+        MoveCursorAndDraw(1);
+      }
     } else {
       MoveCursorAndDraw(1);
     }
     OmniMon::GetInstance().ScheduleDraw();
     return true;
+  }
   case KEY_PPAGE: {
     MoveCursorAndDraw(-GetHeight());
     OmniMon::GetInstance().ScheduleDraw();
@@ -651,7 +680,7 @@ bool ProcessTree::OnKey(TermKeyCode key) {
   }
 
   // Handle key for selected row
-  if (rows.size() > _Cursor->GetValue() && rows[_Cursor->GetValue()]->GetBinding()->OnKey(key)) {
+  if (row->GetBinding()->OnKey(key)) {
     return true;
   }
 
@@ -659,16 +688,10 @@ bool ProcessTree::OnKey(TermKeyCode key) {
 }
 
 void ProcessTree::MoveCursorAndDraw(DisplayLength offset) {
-  DisplayLength cursor = _Cursor->GetValue();
-  auto rows = GetDataRows();
-  if (rows.size() <= 0) {
-    return;
-  }
-  auto binding = std::dynamic_pointer_cast<ProcessTreeTableDataBinding>(rows[cursor]->GetBinding());
+  auto binding = std::dynamic_pointer_cast<ProcessTreeTableDataBinding>(_Table->GetCursorRow()->GetBinding());
   auto p = _ProcessCollection.MoveCursor(binding->GetProcess(), offset);
-  auto ps = _ProcessCollection.GetAround(p, cursor, GetHeight(), false);
-  _Cursor->Update(cursor);
-  UpdateTable(ps, rows);
+  auto ps = _ProcessCollection.GetAround(p, binding->GetIndex(), GetHeight());
+  UpdateTable(p, ps);
 }
 
 std::shared_ptr<TableCellBinding>
@@ -694,9 +717,6 @@ void ProcessTree::ProcessTreeTableDataBinding::UpdateProcess(std::shared_ptr<Row
     _Process = process;
     for (auto cell : row->GetCells()) {
       std::dynamic_pointer_cast<ProcessDataAbstractCell>(cell->GetBinding())->OnRowBindingChanged();
-    }
-    if (_Process) {
-      _Process->Update();
     }
   }
 }

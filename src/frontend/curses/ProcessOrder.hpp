@@ -23,9 +23,10 @@ public:
 
   std::shared_ptr<Process> MoveCursor(std::shared_ptr<Process> current, DisplayLength offset);
 
+  std::shared_ptr<Process> GetValidAncestor(std::shared_ptr<Process> process);
   std::vector<std::shared_ptr<Process>> GetTopK(size_t k);
-  std::vector<std::shared_ptr<Process>> GetAround(std::shared_ptr<Process> process, DisplayLength& cursor,
-                                                  DisplayLength max, bool update);
+  std::vector<std::shared_ptr<Process>> GetAround(std::shared_ptr<Process> process, DisplayLength index,
+                                                  DisplayLength max);
 
   void operator()(backend::process::PidType pid, const std::filesystem::path& dir) override;
 

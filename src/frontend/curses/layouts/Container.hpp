@@ -39,6 +39,9 @@ public:
     virtual DisplayLength GetMarginAfter() const = 0;
     virtual View& GetView() = 0;
 
+    virtual void DrawPrepare(const UpdateContext& attrs) { GetView().DrawPrepare(attrs); }
+
+    // This child will be removed at container's DrawPrepare
     void MarkForDeletion() { _MarkForDeletion = true; }
     bool IsMarkForDeletion() const { return _MarkForDeletion; }
 
@@ -61,7 +64,7 @@ public:
 
   void AppendChild(std::shared_ptr<Child> view);
   void CalculateLayout();
-  void MakeSimilarTo(const Container& other);
+  void MakeSimilarTo(Container& other);
 
   static DisplayLength& ParrelGrowth(GrowthType growth, Layout& layout) {
     return growth == GrowthType::Vertical ? layout.Height : layout.Width;

@@ -1,9 +1,9 @@
 #pragma once
 
-#include <memory>
 #include <ncursesw/ncurses.h>
 
 #include "../Events.hpp"
+#include <memory>
 
 namespace frontend::curses {
 
@@ -12,19 +12,20 @@ using TermKeyCode = int;
 
 class Attrs {
 public:
-  TermAttrs attrs = A_NORMAL;
+  explicit Attrs();
+  TermAttrs attrs;
 };
 
 class UpdateContext {
 public:
-  explicit UpdateContext(WINDOW* win) : Win(win) {}
+  explicit UpdateContext(WINDOW* win);
 
   WINDOW* Win;
 
   bool Visible = true;
   bool ForceRedraw = false;
 
-  TermAttrs attrs = A_NORMAL;
+  TermAttrs attrs;
 
   UpdateContext MergeWith(bool visible) const {
     UpdateContext result = *this;
