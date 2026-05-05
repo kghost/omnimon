@@ -3,8 +3,6 @@ add_subdirectory(layouts)
 pkg_check_modules(NCURSESW REQUIRED ncursesw)
 
 file(GLOB omnimon_srcs LIST_DIRECTORIES false "./*.cpp" "./*.hpp")
-# Ensure new files are picked up if GLOB fails for some reason or just to be explicit
-list(APPEND omnimon_srcs "ProcessColumns.cpp" "ProcessColumns.hpp")
 add_executable(omnimon ${omnimon_srcs})
 
 target_link_libraries(omnimon ${BPF_LIBRARIES})
