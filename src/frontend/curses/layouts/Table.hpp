@@ -1,7 +1,6 @@
 #pragma once
 
 #include <memory>
-#include <ranges> // C++20
 #include <vector>
 
 #include "../../../backend/metrics/SimplePublisher.hpp"

@@ -24,6 +24,7 @@ public:
   std::string GetCommand() const { return _Info.comm; }
   std::chrono::steady_clock::time_point GetStartTime() const { return _StartTime; }
   std::string GetCommandLine() const;
+  std::string GetUser() const;
 
   using GaugePtr = std::shared_ptr<backend::metrics::Gauge>;
   GaugePtr GetState() { return _State; }
@@ -43,6 +44,7 @@ private:
     int pid = 0;
     int ppid;
     std::string comm;
+    uid_t uid;
   };
 
   void ParseStatFile();

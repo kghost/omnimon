@@ -5,7 +5,9 @@
 #include <ranges>
 #include <regex>
 #include <sstream>
+#include <pwd.h>
 #include <string>
+#include <sys/stat.h>
 
 #include "../../utils/Clock.hpp"
 #include "../../utils/Error.hpp"
@@ -52,6 +54,23 @@ std::string Process::GetCommandLine() const {
     return _Info.comm;
   } else {
     return result.str();
+  }
+}
+
+std::string Process::GetUser() const {
+  static std::map<uid_t, std::string> userCache;
+  if (auto it = userCache.find(_Info.uid); it != userCache.end()) {
+    return it->second;
+  } else {
+    struct passwd* pw = getpwuid(_Info.uid);
+    std::string user;
+    if (pw) {
+      user = pw->pw_name;
+    } else {
+      user = std::to_string(_Info.uid);
+    }
+    userCache[_Info.uid] = user;
+    return user;
   }
 }
 
@@ -107,6 +126,11 @@ void Process::ParseStatFile() {
   afterComm >> ps.state >> _Info.ppid >> ps.pgrp >> ps.session >> ps.tty_nr >> ps.tpgid >> ps.flags >> ps.minflt >>
       ps.cminflt >> ps.majflt >> ps.cmajflt >> ps.utime >> ps.stime >> ps.cutime >> ps.cstime >> ps.priority >>
       ps.nice >> ps.num_threads >> ps.itrealvalue >> ps.starttime >> ps.vsize >> ps.rss;
+
+  struct stat st;
+  if (stat(_ProcDirPath.c_str(), &st) == 0) {
+    _Info.uid = st.st_uid;
+  }
 
   auto time = utils::JiffyToClock(ps.starttime);
   if (_StartTime == Process::EPOCH) {
