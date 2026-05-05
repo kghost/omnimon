@@ -8,7 +8,7 @@ function(bpf_program)
 
   add_custom_command(
     OUTPUT ${bpf_skel}
-    COMMAND bpf-gcc -g -O2 -D__TARGET_ARCH_${ARCH} -I/usr/include -I${KERNELHEADERS_DIR} -I${CMAKE_BINARY_DIR}/src/backend/bpf/btfs -c ${CMAKE_CURRENT_SOURCE_DIR}/${BPF_PROGRAM_BPF_SRC} -o ${bpf_program}
+    COMMAND bpf-gcc -g -O2 -std=gnu17 -D__TARGET_ARCH_${ARCH} -I/usr/include -I${KERNELHEADERS_DIR} -I${CMAKE_BINARY_DIR}/src/backend/bpf/btfs -c ${CMAKE_CURRENT_SOURCE_DIR}/${BPF_PROGRAM_BPF_SRC} -o ${bpf_program}
     COMMAND /usr/sbin/bpftool gen skeleton ${bpf_program} > ${bpf_skel}
     MAIN_DEPENDENCY ${CMAKE_CURRENT_SOURCE_DIR}/${BPF_PROGRAM_BPF_SRC}
     DEPENDS btfs ${CMAKE_CURRENT_SOURCE_DIR}/${BPF_PROGRAM_BPF_HEADERS})
