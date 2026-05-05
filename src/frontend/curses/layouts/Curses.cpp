@@ -9,9 +9,6 @@
 
 namespace frontend::curses {
 
-Attrs::Attrs() : attrs(A_NORMAL) {}
-UpdateContext::UpdateContext(WINDOW* win) : Win(win), attrs(A_NORMAL) {}
-
 Curses::SigWinChange::SigWinChange(EventLoop& loop, Curses& curses) : EventSignal(loop, SIGWINCH), _Curses(curses) {}
 void Curses::SigWinChange::OnSignal(SigNumType signum) { _Curses.HandleWinChangeSignal(); }
 
@@ -43,7 +40,7 @@ void Curses::ScheduleDraw() { _DrawScheduled = true; }
 
 void Curses::Update() {
   if (_Root) {
-    UpdateContext attrs(stdscr);
+    DrawContentContext attrs(stdscr);
     _Root->DrawPrepare(attrs);
     _Root->DrawContent(attrs);
     wnoutrefresh(stdscr);
@@ -72,7 +69,7 @@ void Curses::Resize() {
   assert(height > 0);
   assert(width > 0);
 
-  _Root->SetLayout({0, 0}, {height, width});
+  _Root->SetLayout({{0, 0}, {height, width}});
 }
 
 } // namespace frontend::curses

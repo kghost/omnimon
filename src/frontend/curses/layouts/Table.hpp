@@ -149,7 +149,7 @@ public:
   Table& operator=(Table&&) = delete;
 
   bool OnKey(TermKeyCode key) override;
-  void DrawPrepare(const UpdateContext& attrs) override;
+  void DrawPrepare(const DrawContentContext& attrs) override;
 
   void CalculateLayout();
 

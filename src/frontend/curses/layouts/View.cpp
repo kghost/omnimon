@@ -4,25 +4,18 @@
 
 namespace frontend::curses {
 
-bool View::SetLayout(Layout offset, Layout layout) {
-  assert(offset.Height >= 0);
-  assert(offset.Width >= 0);
-  assert(layout.Height >= 0);
-  assert(layout.Width >= 0);
+bool View::SetLayout(Region region) {
+  assert(region._Offset.Height >= 0);
+  assert(region._Offset.Width >= 0);
+  assert(region._Size.Height >= 0);
+  assert(region._Size.Width >= 0);
 
-  bool changed = false;
-
-  if (_Offset != offset) {
-    _Offset = offset;
-    changed = true;
+  if (_Region != region) {
+    _Region = region;
+    return true;
   }
 
-  if (_Layout != layout) {
-    _Layout = layout;
-    changed = true;
-  }
-
-  return changed;
+  return false;
 }
 
 } // namespace frontend::curses

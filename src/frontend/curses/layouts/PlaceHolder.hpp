@@ -9,8 +9,8 @@ public:
   explicit PlaceHolder() = default;
 
   bool OnKey(TermKeyCode key) override { return false; }
-  void DrawPrepare(const UpdateContext& attrs) override final {}
-  void DrawContent(const UpdateContext& attrs) override final {}
+  void DrawPrepare(const DrawContentContext& attrs) override final {}
+  void DrawContent(const DrawContentContext& attrs) override final {}
 };
 
 } // namespace frontend::curses

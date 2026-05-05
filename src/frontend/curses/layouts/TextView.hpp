@@ -15,7 +15,7 @@ public:
 
   bool OnKey(TermKeyCode key) override { return false; }
   void SetText(const std::string& text);
-  void DoDrawContent(const UpdateContext& my) override;
+  void DoDrawContent(const DrawContentContext& my) override;
 
 protected:
   std::string _Text;

@@ -2,20 +2,20 @@
 
 namespace frontend::curses {
 
-bool Wrapper::SetLayout(Layout offset, Layout layout) {
-  if (!AttrView::SetLayout(offset, layout)) {
+bool Wrapper::SetLayout(Region region) {
+  if (!AttrView::SetLayout(region)) {
     return false;
   }
 
-  return _View->SetLayout(offset, layout);
+  return _View->SetLayout(region);
 }
 
-void Wrapper::DrawPrepare(const UpdateContext& attrs) {
+void Wrapper::DrawPrepare(const DrawContentContext& attrs) {
   _View->DrawPrepare(attrs);
   AttrView::DrawPrepare(attrs);
 }
 
-void Wrapper::DoDrawContent(const UpdateContext& my) {
+void Wrapper::DoDrawContent(const DrawContentContext& my) {
   AttrView::DoDrawContent(my);
   _View->DrawContent(my);
 }

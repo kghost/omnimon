@@ -1,6 +1,5 @@
 #pragma once
 
-#include <algorithm>
 #include <string>
 #include <unicode/brkiter.h>
 #include <unicode/unistr.h>

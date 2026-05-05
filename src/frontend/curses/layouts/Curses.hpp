@@ -1,45 +1,13 @@
 #pragma once
 
+#include <memory>
 #include <ncursesw/ncurses.h>
 
 #include "../Events.hpp"
-#include <memory>
 
 namespace frontend::curses {
 
-using TermAttrs = int;
 using TermKeyCode = int;
-
-class Attrs {
-public:
-  explicit Attrs();
-  TermAttrs attrs;
-};
-
-class UpdateContext {
-public:
-  explicit UpdateContext(WINDOW* win);
-
-  WINDOW* Win;
-
-  bool Visible = true;
-  bool ForceRedraw = false;
-
-  TermAttrs attrs;
-
-  UpdateContext MergeWith(bool visible) const {
-    UpdateContext result = *this;
-    result.Visible &= visible;
-    return result;
-  }
-
-  UpdateContext MergeWith(bool visible, const Attrs& changes) const {
-    UpdateContext result = *this;
-    result.Visible &= visible;
-    result.attrs |= changes.attrs;
-    return result;
-  }
-};
 
 class View;
 class Curses {

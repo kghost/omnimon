@@ -11,10 +11,10 @@ public:
   explicit Wrapper(std::shared_ptr<View> view) : _View(view) {}
   ~Wrapper() override = default;
 
-  bool SetLayout(Layout offset, Layout layout) override;
+  bool SetLayout(Region region) override;
   bool OnKey(TermKeyCode key) override { return _View->OnKey(key); }
-  void DrawPrepare(const UpdateContext& attrs) override;
-  void DoDrawContent(const UpdateContext& my) override;
+  void DrawPrepare(const DrawContentContext& attrs) override;
+  void DoDrawContent(const DrawContentContext& my) override;
 
 private:
   std::shared_ptr<View> _View;

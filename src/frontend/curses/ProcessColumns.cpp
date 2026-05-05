@@ -14,7 +14,9 @@
 namespace frontend::curses {
 
 ProcessHeaderCell::ProcessHeaderCell(TextView::Align align, std::string text)
-    : _View(std::make_shared<TextView>(align, text)) {}
+    : _View(std::make_shared<TextView>(align, text)) {
+  _View->SetAttr(A_UNDERLINE);
+}
 
 std::shared_ptr<View> ProcessHeaderCell::CreateView(std::shared_ptr<Row> row, std::shared_ptr<Column> column) {
   return _View;
@@ -30,7 +32,7 @@ std::shared_ptr<View> ProcessDataCell::CreateView(std::shared_ptr<Row> row, std:
 }
 
 std::shared_ptr<TableCellBinding> ProcessColumnCursor::Header() const {
-  return std::make_shared<ProcessHeaderCell>(TextView::Align::Left, std::string("☰"));
+  return std::make_shared<ProcessHeaderCell>(TextView::Align::Left, std::string("≡"));
 }
 
 std::shared_ptr<TableCellBinding>

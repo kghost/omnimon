@@ -4,30 +4,36 @@
 
 namespace frontend::curses {
 
+// AttrView is a View that has a background attribute and can be invalidated.
+//
+// Each space on the screen is covered by at most one AttrView, so that when
+// DrawPrepare is called for AttrView, it will overwrite the space with its
+// attribute, and when DrawContent is called, it will overwrite the space with
+// its content. Only leaf views can be AttrView, since any parent view will be
+// drawn over it.
 class AttrView : public View {
 public:
   explicit AttrView() = default;
   ~AttrView() override = default;
 
-  void SetAttr(Attrs attrs) { _Attrs = attrs; }
+  void SetAttr(TermAttrs attrs) { _Attrs = attrs; }
 
-  bool SetLayout(Layout offset, Layout layout) override;
-  void DrawPrepare(const UpdateContext& attrs) override;
-  void DrawContent(const UpdateContext& attrs) override final;
+  bool SetLayout(Region region) override;
+  void DrawPrepare(const DrawContentContext& attrs) override;
+  void DrawContent(const DrawContentContext& attrs) override final;
 
 protected:
-  virtual void DoDrawContent(const UpdateContext& my);
+  virtual void DoDrawContent(const DrawContentContext& my);
 
 private:
-  void Erase(const UpdateContext& attrs, Layout offset, Layout layout) const;
-  Attrs _Attrs;
+  void Erase(const DrawContentContext& attrs, Region region) const;
+  TermAttrs _Attrs = A_NORMAL;
 
   bool _ForceRedraw = false;
   bool _Invalid = true;
   bool _Shown = false;
 
-  Layout _OldOffset;
-  Layout _OldLayout;
+  Region _OldRegion = {{0, 0}, {0, 0}};
 };
 
 } // namespace frontend::curses

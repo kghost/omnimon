@@ -4,8 +4,8 @@
 
 namespace frontend::curses {
 
-bool Container::SetLayout(Layout offset, Layout layout) {
-  if (!View::SetLayout(offset, layout)) {
+bool Container::SetLayout(Region region) {
+  if (!View::SetLayout(region)) {
     return false;
   }
 
@@ -23,7 +23,7 @@ bool Container::OnKey(TermKeyCode key) {
   return false;
 }
 
-void Container::DrawPrepare(const UpdateContext& attrs) {
+void Container::DrawPrepare(const DrawContentContext& attrs) {
   // Process all children including those marked for deletion, in order to clear
   // previous content.
   auto my = attrs.MergeWith(_Visible);
@@ -35,7 +35,7 @@ void Container::DrawPrepare(const UpdateContext& attrs) {
   std::erase_if(_Children, [](const auto& child) { return child->IsMarkForDeletion(); });
 }
 
-void Container::DrawContent(const UpdateContext& attrs) {
+void Container::DrawContent(const DrawContentContext& attrs) {
   auto my = attrs.MergeWith(_Visible);
   for (auto& child : GetChildren()) {
     child->GetView().DrawContent(my);
@@ -71,15 +71,15 @@ void Container::MakeSimilarTo(Container& other) {
     assert(myChild->GetMarginBefore() == yourChild->GetMarginBefore());
     assert(myChild->GetSize() == yourChild->GetSize());
     assert(myChild->GetMarginAfter() == yourChild->GetMarginAfter());
-    myChild->GetView().SetLayout(yourChild->GetView().GetOffset() - other.GetOffset() + GetOffset(),
-                                 yourChild->GetView().GetLayout());
+    myChild->GetView().SetLayout({yourChild->GetView().GetOffset() - other.GetOffset() + GetOffset(),
+                                  yourChild->GetView().GetLayout()});
   }
 }
 
 void Container::CalculateChildLayout(std::shared_ptr<Child> child) {
-  DisplayLength max = ParrelGrowth(_Growth, _Layout);
-  Layout childSize = _Layout;
-  Layout childOffset = _Offset;
+  DisplayLength max = ParrelGrowth(_Growth, _Region._Size);
+  Layout childSize = _Region._Size;
+  Layout childOffset = _Region._Offset;
 
   auto size = child->GetSize();
   auto marginBefore = child->GetMarginBefore();
@@ -87,7 +87,7 @@ void Container::CalculateChildLayout(std::shared_ptr<Child> child) {
   auto arrangement = child->GetArrangement();
 
   if (size <= 0 || (marginBefore + size + marginAfter + _AllcatedForward + _AllcatedBackward > max)) {
-    child->GetView().SetLayout({0, 0}, {0, 0});
+    child->GetView().SetLayout({{0, 0}, {0, 0}});
     return;
   }
 
@@ -98,7 +98,7 @@ void Container::CalculateChildLayout(std::shared_ptr<Child> child) {
     ParrelGrowth(_Growth, childOffset) += _AllcatedForward + marginBefore;
     _AllcatedForward += marginBefore + size + marginAfter;
 
-    child->GetView().SetLayout(childOffset, childSize);
+    child->GetView().SetLayout({childOffset, childSize});
     break;
   case ChildArrangement::ArrangementType::Backward:
     // Allocate space at the end of the container
@@ -106,7 +106,7 @@ void Container::CalculateChildLayout(std::shared_ptr<Child> child) {
     ParrelGrowth(_Growth, childOffset) += max - (_AllcatedBackward + size + marginBefore);
     _AllcatedBackward += marginBefore + size + marginAfter;
 
-    child->GetView().SetLayout(childOffset, childSize);
+    child->GetView().SetLayout({childOffset, childSize});
     break;
   case ChildArrangement::ArrangementType::FillRest:
     // Allocate rest for the last child of the container
@@ -114,7 +114,7 @@ void Container::CalculateChildLayout(std::shared_ptr<Child> child) {
     ParrelGrowth(_Growth, childOffset) += _AllcatedForward + marginBefore;
     _AllcatedForward = max - _AllcatedBackward;
 
-    child->GetView().SetLayout(childOffset, childSize);
+    child->GetView().SetLayout({childOffset, childSize});
     break;
   }
 }

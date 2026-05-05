@@ -2,8 +2,8 @@
 
 namespace frontend::curses {
 
-bool AttrView::SetLayout(Layout offset, Layout layout) {
-  if (View::SetLayout(offset, layout)) {
+bool AttrView::SetLayout(Region region) {
+  if (View::SetLayout(region)) {
     _Invalid = true;
     return true;
   } else {
@@ -11,15 +11,14 @@ bool AttrView::SetLayout(Layout offset, Layout layout) {
   }
 }
 
-void AttrView::DrawPrepare(const UpdateContext& attrs) {
+void AttrView::DrawPrepare(const DrawContentContext& attrs) {
   if (!_Shown) {
     return;
   }
 
   if (attrs.ForceRedraw || _Invalid) {
-    Erase(attrs, _OldOffset, _OldLayout);
-    _OldOffset = _Offset;
-    _OldLayout = _Layout;
+    Erase(attrs, _OldRegion);
+    _OldRegion = _Region;
 
     _ForceRedraw = true;
     _Invalid = false;
@@ -27,7 +26,7 @@ void AttrView::DrawPrepare(const UpdateContext& attrs) {
   }
 }
 
-void AttrView::DrawContent(const UpdateContext& attrs) {
+void AttrView::DrawContent(const DrawContentContext& attrs) {
   auto my = attrs.MergeWith(_Visible, _Attrs);
   my.ForceRedraw |= _ForceRedraw;
   _ForceRedraw = false;
@@ -35,22 +34,21 @@ void AttrView::DrawContent(const UpdateContext& attrs) {
   DoDrawContent(my);
 }
 
-void AttrView::DoDrawContent(const UpdateContext& my) {
+void AttrView::DoDrawContent(const DrawContentContext& my) {
   if (!my.Visible || (_Shown && !my.ForceRedraw)) {
     return;
   }
 
-  Erase(my, _Offset, _Layout);
-  _OldOffset = _Offset;
-  _OldLayout = _Layout;
+  Erase(my, _Region);
+  _OldRegion = _Region;
 
   _Shown = true;
 }
 
-void AttrView::Erase(const UpdateContext& attrs, Layout offset, Layout layout) const {
+void AttrView::Erase(const DrawContentContext& attrs, Region region) const {
   attron(attrs.attrs);
-  for (DisplayLength i = 0; i < layout.Height; ++i) {
-    mvwaddstr(attrs.Win, offset.Height + i, offset.Width, std::string(layout.Width, ' ').c_str());
+  for (DisplayLength i = 0; i < region._Size.Height; ++i) {
+    mvwaddstr(attrs.Win, region._Offset.Height + i, region._Offset.Width, std::string(region._Size.Width, ' ').c_str());
   }
   attroff(attrs.attrs);
 }
