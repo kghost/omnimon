@@ -1,8 +1,17 @@
 #include "OmniMon.hpp"
 
+#include "ProcessTree.hpp"
+
 namespace frontend::curses {
 
 void Timer::OnTimer() { _OmniMon.Update(); }
+
+void SigWinChange::OnSignal(SigNumType signum) { _OmniMon.HandleWinChangeSignal(); }
+
+void IO::OnRead() {
+  _OmniMon.OnStdInRead();
+  ScheduleRead();
+}
 
 OmniMon& OmniMon::GetInstance() {
   static OmniMon instance;
@@ -10,18 +19,28 @@ OmniMon& OmniMon::GetInstance() {
 }
 
 OmniMon::OmniMon()
-    : _Loop(), _SigInt(_Loop), _Curses(_Loop), _Timer(_Loop, *this), _ProcessTree(std::make_shared<ProcessTree>()),
-      _Screen(std::make_shared<Screen>(*this, _ProcessTree)) {
-  _Curses.SetRoot(_Screen);
+    : _Loop(), _SigInt(_Loop), _SigWinChange(_Loop, *this), _StdIO(_Loop, *this), _Curses(*this),
+      _Tick(std::make_shared<backend::metrics::SimplePublisher<int>>()), _Timer(_Loop, *this) {
+  _Curses.SetWindow(std::make_shared<ProcessTree>(_Tick));
 }
 
 void OmniMon::ScheduleDraw() { _Curses.ScheduleDraw(); }
 
-void OmniMon::Update() {
-  _ProcessTree->Update();
-  Draw();
+void OmniMon::HandleWinChangeSignal() { _Curses.HandleWinChangeSignal(); }
+
+void OmniMon::OnStdInRead() { _Curses.HandleInput(); }
+
+bool OmniMon::OnKey(TermKeyCode key) {
+  if (key == 'q') {
+    Stop();
+    return true;
+  }
+  return false;
 }
 
-void OmniMon::Draw() { _Curses.Update(); }
+void OmniMon::Update() {
+  _Tick->Update(_Tick->GetValue() + 1);
+  _Curses.Update();
+}
 
 } // namespace frontend::curses

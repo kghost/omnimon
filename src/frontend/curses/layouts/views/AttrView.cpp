@@ -1,4 +1,5 @@
 #include "AttrView.hpp"
+
 #include <cassert>
 
 namespace frontend::curses {

@@ -5,13 +5,16 @@
 
 #include "OmniMon.hpp"
 #include "Process.hpp"
-#include "layouts/Container.hpp"
+#include "layouts/views/Container.hpp"
 
 #include "ProcessColumns.hpp"
 
 namespace frontend::curses {
 
-ProcessTree::ProcessTree() : _Table(std::make_shared<Table>(*this, *this)) {
+ProcessTree::ProcessTree(std::shared_ptr<backend::metrics::SimplePublisher<int>> tick)
+    : _Table(std::make_shared<Table>(*this, *this)),
+      _TickUpdater(backend::metrics::MakeSubscriber(tick, [this](auto tick) { this->Update(); })) {
+
   constexpr const auto Forward = Container::ChildArrangement::ArrangementType::Forward;
   constexpr const auto FillRest = Container::ChildArrangement::ArrangementType::FillRest;
   _Table->AppendColumn(std::make_shared<ProcessColumnCursor>(), Forward, 1, 0, 0);

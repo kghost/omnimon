@@ -7,11 +7,19 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Launch cmake.launchTargetPath",
+            "name": "Launch omnimon",
             "program": "${workspaceFolder}/build/omnimon",
             "args": [],
             "cwd": "${workspaceFolder}",
-            "preLaunchTask": "CMake Build"
+            "preLaunchTask": "CMake Build",
+            "terminal": "integrated",
+            "env": {
+                "TERM": "xterm-256color"
+            },
+            "initCommands": [
+                "process handle SIGWINCH --stop false --notify false --pass true",
+                "process handle SIGINT --stop false --notify false --pass true"
+            ]
         }
     ]
 }

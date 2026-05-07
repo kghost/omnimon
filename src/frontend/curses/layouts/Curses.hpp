@@ -3,51 +3,25 @@
 #include <memory>
 #include <ncursesw/ncurses.h>
 
-#include "../Events.hpp"
+#include "Base.hpp"
+#include "Window.hpp"
 
 namespace frontend::curses {
 
-using TermKeyCode = int;
-
-class View;
 class Curses {
 public:
-  explicit Curses(EventLoop& loop);
+  explicit Curses(InputHandler& inputHandler);
   ~Curses();
 
-  void SetRoot(std::shared_ptr<View> root);
+  void SetWindow(std::shared_ptr<WindowClient> client);
   void HandleWinChangeSignal();
-
-  void OnStdInRead();
+  void HandleInput();
   void ScheduleDraw();
   void Update();
 
 private:
-  void Resize();
-
-  class SigWinChange : public frontend::curses::EventSignal {
-  public:
-    explicit SigWinChange(EventLoop& loop, Curses& curses);
-    void OnSignal(SigNumType signum) override;
-
-  private:
-    Curses& _Curses;
-  } _SigWinChange;
-
-  class IO : public frontend::curses::EventHandle {
-  public:
-    explicit IO(EventLoop& loop, Curses& curses) : EventHandle(loop, 0), _Curses(curses) { ScheduleRead(); }
-    void OnRead() override {
-      _Curses.OnStdInRead();
-      ScheduleRead();
-    }
-    void OnWrite() override {}
-
-  private:
-    Curses& _Curses;
-  } _StdIO;
-
-  std::shared_ptr<View> _Root;
+  InputHandler& _InputHandler;
+  std::shared_ptr<Window> _RootWindow;
   bool _DrawScheduled = false;
 };
 

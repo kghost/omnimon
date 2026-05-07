@@ -3,13 +3,14 @@
 #include <memory>
 
 #include "ProcessOrder.hpp"
-#include "layouts/Table.hpp"
+#include "layouts/Window.hpp"
+#include "layouts/views/Table.hpp"
 
 namespace frontend::curses {
 
-class ProcessTree : public InputHandler, public TableCellFactory {
+class ProcessTree : public WindowClient, public TableCellFactory {
 public:
-  explicit ProcessTree();
+  explicit ProcessTree(std::shared_ptr<backend::metrics::SimplePublisher<int>> tick);
   ~ProcessTree() override = default;
 
   class ProcessTreeTableRowBinding : public TableRowBinding {
@@ -41,7 +42,7 @@ public:
 
   std::shared_ptr<TableCellBinding> NewCell(Table& table, std::shared_ptr<Row> row,
                                             std::shared_ptr<Column> column) override;
-  std::shared_ptr<View> GetView() { return _Table; }
+  std::shared_ptr<View> GetView() override { return _Table; }
 
   void Update();
   bool OnKey(TermKeyCode key) override;
@@ -58,6 +59,7 @@ private:
 
   ProcessCollection _ProcessCollection;
   std::shared_ptr<Table> _Table;
+  std::shared_ptr<backend::metrics::SubscriberBase> _TickUpdater;
 };
 
 } // namespace frontend::curses

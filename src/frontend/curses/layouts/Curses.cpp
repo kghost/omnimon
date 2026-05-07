@@ -1,18 +1,27 @@
 #include "Curses.hpp"
 
 #include <cassert>
-#include <signal.h>
 #include <sys/ioctl.h>
 #include <termios.h>
 
-#include "View.hpp"
+#include "Base.hpp"
+#include "Window.hpp"
+#include "views/Container.hpp"
 
 namespace frontend::curses {
 
-Curses::SigWinChange::SigWinChange(EventLoop& loop, Curses& curses) : EventSignal(loop, SIGWINCH), _Curses(curses) {}
-void Curses::SigWinChange::OnSignal(SigNumType signum) { _Curses.HandleWinChangeSignal(); }
+void Curses::HandleWinChangeSignal() {
+  struct winsize ws;
+  ioctl(0, TIOCGWINSZ, &ws);
+  resizeterm(ws.ws_row, ws.ws_col);
 
-Curses::Curses(EventLoop& loop) : _SigWinChange(loop, *this), _StdIO(loop, *this), _Root(nullptr) {
+  if (_RootWindow) {
+    _RootWindow->SetLayout({{0, 0}, {ws.ws_row, ws.ws_col}});
+    Update();
+  }
+}
+
+Curses::Curses(InputHandler& inputHandler) : _InputHandler(inputHandler), _RootWindow(nullptr) {
   initscr();
   cbreak();
   noecho();
@@ -20,14 +29,19 @@ Curses::Curses(EventLoop& loop) : _SigWinChange(loop, *this), _StdIO(loop, *this
   nodelay(stdscr, true);
   keypad(stdscr, true);
   wrefresh(stdscr);
+  wgetch(stdscr);
 }
 Curses::~Curses() { endwin(); }
 
-void Curses::OnStdInRead() {
-  for (TermKeyCode ch = getch(); ch > 0; ch = getch()) {
-    if (_Root) {
+void Curses::HandleInput() {
+  if (_RootWindow) {
+    for (TermKeyCode ch = wgetch(stdscr); ch > 0; ch = wgetch(stdscr)) {
+      if (_InputHandler.OnKey(ch)) {
+        continue;
+      }
+
       assert(!_DrawScheduled);
-      _Root->OnKey(ch);
+      _RootWindow->OnKey(ch);
       if (_DrawScheduled) {
         Update();
         _DrawScheduled = false;
@@ -39,36 +53,14 @@ void Curses::OnStdInRead() {
 void Curses::ScheduleDraw() { _DrawScheduled = true; }
 
 void Curses::Update() {
-  if (_Root) {
-    _Root->DrawPrepare(DrawPrepareContext(stdscr));
-    _Root->DrawContent(DrawContentContext(stdscr));
-    wnoutrefresh(stdscr);
+  if (_RootWindow) {
+    _RootWindow->Draw();
     doupdate();
   }
 }
 
-void Curses::SetRoot(std::shared_ptr<View> root) {
-  _Root = root;
-  Resize();
-}
-
-void Curses::HandleWinChangeSignal() {
-  struct winsize ws;
-  ioctl(0, TIOCGWINSZ, &ws);
-  resizeterm(ws.ws_row, ws.ws_col);
-
-  if (_Root) {
-    Resize();
-    Update();
-  }
-}
-
-void Curses::Resize() {
-  DisplayLength height = getmaxy(stdscr), width = getmaxx(stdscr);
-  assert(height > 0);
-  assert(width > 0);
-
-  _Root->SetLayout({{0, 0}, {height, width}});
+void Curses::SetWindow(std::shared_ptr<WindowClient> client) {
+  _RootWindow = std::make_shared<Window>(Region{{0, 0}, {getmaxy(stdscr), getmaxx(stdscr)}}, client);
 }
 
 } // namespace frontend::curses

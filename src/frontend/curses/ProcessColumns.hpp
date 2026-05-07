@@ -4,8 +4,8 @@
 #include <string>
 
 #include "ProcessTree.hpp"
-#include "layouts/Table.hpp"
-#include "layouts/TextView.hpp"
+#include "layouts/views/Table.hpp"
+#include "layouts/views/TextView.hpp"
 
 namespace frontend::curses {
 

@@ -2,17 +2,11 @@
 
 #include <memory>
 
-#include "Curses.hpp"
+#include "../Base.hpp"
+#include "../Region.hpp"
 #include "Draw.hpp"
-#include "Region.hpp"
 
 namespace frontend::curses {
-
-class InputHandler {
-public:
-  virtual ~InputHandler() = default;
-  virtual bool OnKey(TermKeyCode key) = 0;
-};
 
 class ViewDataBinding : public InputHandler {};
 

@@ -4,11 +4,11 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <stdexcept>
-#include <string.h>
 #include <sys/epoll.h>
 #include <sys/eventfd.h>
 #include <sys/signalfd.h>
 #include <sys/timerfd.h>
+#include <system_error>
 
 #include "../../utils/Clock.hpp"
 #include "../../utils/Error.hpp"
@@ -59,11 +59,16 @@ EventNotification::EventNotification(EventLoop& loop)
 
 void EventNotification::OnRead() {
   uint64_t amount;
-  if (PosixE(read(_Fd, &amount, sizeof(amount)), [] { return errno == EWOULDBLOCK; }) <= 0) {
-    return;
+  while (true) {
+    auto res = read(_Fd, &amount, sizeof(amount));
+    if (res <= 0) {
+      if (res < 0 && errno != EWOULDBLOCK) {
+        throw std::system_error(errno, std::generic_category(), "read eventfd");
+      }
+      break;
+    }
+    OnNotification(amount);
   }
-
-  OnNotification(amount);
   ScheduleRead();
 }
 
@@ -81,11 +86,16 @@ EventSignal::EventSignal(EventLoop& loop, SigNumType signum) : EventHandle(loop,
 
 void EventSignal::OnRead() {
   struct signalfd_siginfo info;
-  if (PosixE(read(_Fd, &info, sizeof(info)), [] { return errno == EWOULDBLOCK; }) <= 0) {
-    return;
+  while (true) {
+    auto res = read(_Fd, &info, sizeof(info));
+    if (res <= 0) {
+      if (res < 0 && errno != EWOULDBLOCK) {
+        throw std::system_error(errno, std::generic_category(), "read signalfd");
+      }
+      break;
+    }
+    OnSignal(info.ssi_signo);
   }
-
-  OnSignal(info.ssi_signo);
   ScheduleRead();
 }
 
@@ -120,11 +130,16 @@ EventTimer::EventTimer(EventLoop& loop, std::chrono::steady_clock::duration time
 
 void EventTimer::OnRead() {
   uint64_t amount;
-  if (PosixE(read(_Fd, &amount, sizeof(amount)), [] { return errno == EWOULDBLOCK; }) <= 0) {
-    return;
+  while (true) {
+    auto res = read(_Fd, &amount, sizeof(amount));
+    if (res <= 0) {
+      if (res < 0 && errno != EWOULDBLOCK) {
+        throw std::system_error(errno, std::generic_category(), "read timerfd");
+      }
+      break;
+    }
+    OnTimer();
   }
-
-  OnTimer();
   ScheduleRead();
 }
 

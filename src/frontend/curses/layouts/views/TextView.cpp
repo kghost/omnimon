@@ -3,7 +3,7 @@
 #include <cassert>
 #include <format>
 
-#include "../../../utils/StringUtils.hpp"
+#include "../../../../utils/StringUtils.hpp"
 
 namespace frontend::curses {
 
@@ -47,16 +47,11 @@ void TextView::DoDrawContent(const DrawContentContext& my) {
       switch (_Align) {
       case Align::Left:
         mvwaddstr(my.Win, _Region._Offset.Height, _Region._Offset.Width, text.c_str());
-        mvwaddstr(my.Win, _Region._Offset.Height, _Region._Offset.Width + width, std::string(missing, ' ').c_str());
         break;
       case Align::Center:
-        mvwaddstr(my.Win, _Region._Offset.Height, _Region._Offset.Width, std::string(missing / 2, ' ').c_str());
-        mvwaddstr(my.Win, _Region._Offset.Height, _Region._Offset.Width + missing / 2, text.c_str());
-        mvwaddstr(my.Win, _Region._Offset.Height, _Region._Offset.Width + missing / 2 + width,
-                  std::string(missing - missing / 2, ' ').c_str());
+        mvwaddstr(my.Win, _Region._Offset.Height, _Region._Offset.Width + (missing / 2), text.c_str());
         break;
       case Align::Right:
-        mvwaddstr(my.Win, _Region._Offset.Height, _Region._Offset.Width, std::string(missing, ' ').c_str());
         mvwaddstr(my.Win, _Region._Offset.Height, _Region._Offset.Width + missing, text.c_str());
         break;
       }
