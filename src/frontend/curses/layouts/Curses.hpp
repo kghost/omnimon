@@ -4,9 +4,11 @@
 #include <ncursesw/ncurses.h>
 
 #include "Base.hpp"
-#include "Window.hpp"
 
 namespace frontend::curses {
+
+class Window;
+class WindowClient;
 
 class Curses {
 public:

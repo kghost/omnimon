@@ -20,6 +20,8 @@ public:
   explicit Window(Region region, std::shared_ptr<WindowClient> client);
   ~Window();
 
+  WINDOW* GetWindow() { return _Win; }
+
   void SetLayout(Region region);
   void Draw();
   bool OnKey(TermKeyCode key);

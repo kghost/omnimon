@@ -9,6 +9,7 @@ namespace frontend::curses {
 Window::Window(Region region, std::shared_ptr<WindowClient> client)
     : _Win(newwin(region._Size.Height, region._Size.Width, region._Offset.Height, region._Offset.Width)),
       _Client(client) {
+  keypad(_Win, true);
   _Client->GetView()->SetLayout({{0, 0}, region._Size});
 }
 

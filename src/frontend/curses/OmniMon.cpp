@@ -1,6 +1,7 @@
 #include "OmniMon.hpp"
 
 #include "ProcessTree.hpp"
+#include "layouts/Base.hpp"
 
 namespace frontend::curses {
 

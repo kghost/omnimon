@@ -6,7 +6,6 @@
 
 #include "Base.hpp"
 #include "Window.hpp"
-#include "views/Container.hpp"
 
 namespace frontend::curses {
 
@@ -35,7 +34,7 @@ Curses::~Curses() { endwin(); }
 
 void Curses::HandleInput() {
   if (_RootWindow) {
-    for (TermKeyCode ch = wgetch(stdscr); ch > 0; ch = wgetch(stdscr)) {
+    for (TermKeyCode ch = wgetch(_RootWindow->GetWindow()); ch > 0; ch = wgetch(_RootWindow->GetWindow())) {
       if (_InputHandler.OnKey(ch)) {
         continue;
       }
