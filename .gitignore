@@ -3,6 +3,7 @@ cmake_install.cmake
 Makefile
 *.a
 
+/.cache
 /build
 /CMakeCache.txt
 /src/frontend/curses/omnimon

@@ -40,9 +40,8 @@ void Curses::ScheduleDraw() { _DrawScheduled = true; }
 
 void Curses::Update() {
   if (_Root) {
-    DrawContentContext attrs(stdscr);
-    _Root->DrawPrepare(attrs);
-    _Root->DrawContent(attrs);
+    _Root->DrawPrepare(DrawPrepareContext(stdscr));
+    _Root->DrawContent(DrawContentContext(stdscr));
     wnoutrefresh(stdscr);
     doupdate();
   }

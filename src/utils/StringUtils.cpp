@@ -1,15 +1,16 @@
 #include "StringUtils.hpp"
 
+#include <algorithm>
+#include <memory>
+
 namespace utils {
 
 bool StringIsAsciiPrintable(const std::string& str) {
   return std::all_of(str.begin(), str.end(), [](char c) { return c >= ' ' && c <= '~'; });
 }
 
-DisplayLength GraphemeWidth(const icu::UnicodeString& ustr, int32_t start, int32_t end) {
-  // Use the width of first codepoint to determine the width of the grapheme cluster
-  UEastAsianWidth w =
-      static_cast<UEastAsianWidth>(u_getIntPropertyValue(ustr.char32At(start), UProperty::UCHAR_EAST_ASIAN_WIDTH));
+DisplayLength GraphemeWidth(UChar32 character) {
+  UEastAsianWidth w = static_cast<UEastAsianWidth>(u_getIntPropertyValue(character, UProperty::UCHAR_EAST_ASIAN_WIDTH));
   switch (w) {
   case UEastAsianWidth::U_EA_FULLWIDTH:
   case UEastAsianWidth::U_EA_WIDE:
@@ -43,7 +44,7 @@ DisplayLength StringDisplayTruncate(std::string& str, DisplayLength max) {
   // Iterate over each grapheme cluster in the BreakIterator
   for (int32_t start = iter->first(), end = iter->next(); end != icu::BreakIterator::DONE;
        start = end, end = iter->next()) {
-    DisplayLength w = GraphemeWidth(ustr, start, end);
+    DisplayLength w = GraphemeWidth(ustr.char32At(start));
     if (width + w > max) {
       ustr.tempSubStringBetween(0, start).toUTF8String(str);
       return width;

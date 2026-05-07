@@ -13,28 +13,29 @@ void TextView::SetText(const std::string& text) {
   }
 
   _Text = text;
-  _TextInvalid = true;
+  if (_State == AttrView::State::Shown) {
+    _State = AttrView::State::Invalid;
+  }
 }
 
 void TextView::DoDrawContent(const DrawContentContext& my) {
   AttrView::DoDrawContent(my);
 
-  if (!my.Visible || (!_TextInvalid && !my.ForceRedraw)) {
-    return;
-  }
-
-  attron(my.attrs);
+  wattron(my.Win, my.Attrs);
 
   if (utils::StringIsAsciiPrintable(_Text)) {
     switch (_Align) {
     case Align::Left:
-      mvwaddstr(my.Win, _Region._Offset.Height, _Region._Offset.Width, std::format("{0:<{1}.{1}s}", _Text, _Region._Size.Width).c_str());
+      mvwaddstr(my.Win, _Region._Offset.Height, _Region._Offset.Width,
+                std::format("{0:<{1}.{1}s}", _Text, _Region._Size.Width).c_str());
       break;
     case Align::Center:
-      mvwaddstr(my.Win, _Region._Offset.Height, _Region._Offset.Width, std::format("{0:^{1}.{1}s}", _Text, _Region._Size.Width).c_str());
+      mvwaddstr(my.Win, _Region._Offset.Height, _Region._Offset.Width,
+                std::format("{0:^{1}.{1}s}", _Text, _Region._Size.Width).c_str());
       break;
     case Align::Right:
-      mvwaddstr(my.Win, _Region._Offset.Height, _Region._Offset.Width, std::format("{0:>{1}.{1}s}", _Text, _Region._Size.Width).c_str());
+      mvwaddstr(my.Win, _Region._Offset.Height, _Region._Offset.Width,
+                std::format("{0:>{1}.{1}s}", _Text, _Region._Size.Width).c_str());
       break;
     }
   } else {
@@ -64,9 +65,7 @@ void TextView::DoDrawContent(const DrawContentContext& my) {
     }
   }
 
-  attroff(my.attrs);
-
-  _TextInvalid = false;
+  wattroff(my.Win, my.Attrs);
 }
 
 } // namespace frontend::curses

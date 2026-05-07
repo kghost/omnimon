@@ -40,7 +40,7 @@ public:
   // Each update contains 2 stages:
   // 1. DrawPrepare: clear/remove old content.
   // 2. DrawContent: draw current content.
-  virtual void DrawPrepare(const DrawContentContext& attrs) = 0;
+  virtual void DrawPrepare(const DrawPrepareContext& attrs) = 0;
   virtual void DrawContent(const DrawContentContext& attrs) = 0;
 
 protected:

@@ -58,7 +58,7 @@ Table::~Table() {
 
 bool Table::OnKey(TermKeyCode key) { return _InputHandler.OnKey(key); }
 
-void Table::DrawPrepare(const DrawContentContext& attrs) {
+void Table::DrawPrepare(const DrawPrepareContext& attrs) {
   Container::DrawPrepare(attrs);
   std::erase_if(_Columns, [](auto column) { return column->IsMarkForDeletion(); });
 }

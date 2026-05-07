@@ -9,7 +9,7 @@ using DisplayLength = int;
 namespace utils {
 
 bool StringIsAsciiPrintable(const std::string& str);
-DisplayLength GraphemeWidth(const icu::UnicodeString& ustr, int32_t start, int32_t end);
+DisplayLength GraphemeWidth(UChar32 character);
 DisplayLength StringDisplayTruncate(std::string& str, DisplayLength max);
 
 } // namespace utils

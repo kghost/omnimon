@@ -20,7 +20,6 @@ public:
 protected:
   std::string _Text;
   Align _Align;
-  bool _TextInvalid = true;
 };
 
 } // namespace frontend::curses

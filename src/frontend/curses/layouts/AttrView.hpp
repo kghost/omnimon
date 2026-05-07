@@ -19,19 +19,23 @@ public:
   void SetAttr(TermAttrs attrs) { _Attrs = attrs; }
 
   bool SetLayout(Region region) override;
-  void DrawPrepare(const DrawContentContext& attrs) override;
+  void DrawPrepare(const DrawPrepareContext& attrs) override;
   void DrawContent(const DrawContentContext& attrs) override final;
+
+private:
+  void Erase(Region region, WINDOW* win, TermAttrs attrs) const;
 
 protected:
   virtual void DoDrawContent(const DrawContentContext& my);
 
-private:
-  void Erase(const DrawContentContext& attrs, Region region) const;
   TermAttrs _Attrs = A_NORMAL;
 
-  bool _ForceRedraw = false;
-  bool _Invalid = true;
-  bool _Shown = false;
+  enum class State {
+    Hidden,  // View is hidden, erase can be skipped.
+    Moved,   // View has moved, erase old region, clear new region and draw.
+    Invalid, // View is invalid, erase and draw.
+    Shown,   // View is shown, skip erase and skip draw.
+  } _State = State::Hidden;
 
   Region _OldRegion = {{0, 0}, {0, 0}};
 };

@@ -39,7 +39,7 @@ public:
     virtual DisplayLength GetMarginAfter() const = 0;
     virtual View& GetView() = 0;
 
-    virtual void DrawPrepare(const DrawContentContext& attrs) { GetView().DrawPrepare(attrs); }
+    virtual void DrawPrepare(const DrawPrepareContext& attrs) { GetView().DrawPrepare(attrs); }
 
     // This child will be removed at container's DrawPrepare
     void MarkForDeletion() { _MarkForDeletion = true; }
@@ -59,7 +59,7 @@ public:
   bool SetLayout(Region region) override;
 
   bool OnKey(TermKeyCode key) override;
-  void DrawPrepare(const DrawContentContext& attrs) override;
+  void DrawPrepare(const DrawPrepareContext& attrs) override;
   void DrawContent(const DrawContentContext& attrs) override;
 
   void AppendChild(std::shared_ptr<Child> view);

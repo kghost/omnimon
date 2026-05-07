@@ -23,7 +23,7 @@ bool Container::OnKey(TermKeyCode key) {
   return false;
 }
 
-void Container::DrawPrepare(const DrawContentContext& attrs) {
+void Container::DrawPrepare(const DrawPrepareContext& attrs) {
   // Process all children including those marked for deletion, in order to clear
   // previous content.
   auto my = attrs.MergeWith(_Visible);
@@ -36,9 +36,10 @@ void Container::DrawPrepare(const DrawContentContext& attrs) {
 }
 
 void Container::DrawContent(const DrawContentContext& attrs) {
-  auto my = attrs.MergeWith(_Visible);
-  for (auto& child : GetChildren()) {
-    child->GetView().DrawContent(my);
+  if (_Visible) {
+    for (auto& child : GetChildren()) {
+      child->GetView().DrawContent(attrs);
+    }
   }
 }
 
@@ -71,8 +72,8 @@ void Container::MakeSimilarTo(Container& other) {
     assert(myChild->GetMarginBefore() == yourChild->GetMarginBefore());
     assert(myChild->GetSize() == yourChild->GetSize());
     assert(myChild->GetMarginAfter() == yourChild->GetMarginAfter());
-    myChild->GetView().SetLayout({yourChild->GetView().GetOffset() - other.GetOffset() + GetOffset(),
-                                  yourChild->GetView().GetLayout()});
+    myChild->GetView().SetLayout(
+        {yourChild->GetView().GetOffset() - other.GetOffset() + GetOffset(), yourChild->GetView().GetLayout()});
   }
 }
 
