@@ -1,16 +1,20 @@
 #pragma once
 
 #include <signal.h>
+#include <string>
+#include <vector>
 
 #include "../../backend/metrics/SimplePublisher.hpp"
 #include "Events.hpp"
 #include "Options.hpp"
 #include "layouts/Base.hpp"
 #include "layouts/Curses.hpp"
+#include "layouts/Window.hpp"
 
 namespace frontend::curses {
 
 class OmniMon;
+class TabChoice;
 
 class Timer : public EventTimer {
 public:
@@ -73,6 +77,10 @@ public:
   void Run() { _Loop.Run(); }
   void Stop() { _Loop.Stop(); }
 
+  void SelectTab(std::shared_ptr<TabChoice> choice);
+  void ShowTabSelector();
+  void CloseTabSelector();
+
 private:
   EventLoop _Loop;
   // Signal handlers must be created before the curses instance.
@@ -82,6 +90,7 @@ private:
   Curses _Curses;
   std::shared_ptr<backend::metrics::SimplePublisher<int>> _Tick;
   Timer _Timer;
+  bool _TabSelectorShown = false;
 };
 
 } // namespace frontend::curses

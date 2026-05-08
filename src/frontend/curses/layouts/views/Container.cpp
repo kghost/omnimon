@@ -28,7 +28,7 @@ void Container::DrawPrepare(const DrawPrepareContext& attrs) {
   // previous content.
   auto my = attrs.MergeWith(_Visible);
   for (auto& child : _Children) {
-    child->DrawPrepare(my);
+    child->GetView().DrawPrepare(my);
   }
 
   // Remove marked for deletion children

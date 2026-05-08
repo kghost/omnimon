@@ -1,6 +1,9 @@
 #include "OmniMon.hpp"
 
+#include <cassert>
+
 #include "ProcessTree.hpp"
+#include "TabSelector.hpp"
 #include "layouts/Base.hpp"
 
 namespace frontend::curses {
@@ -36,7 +39,29 @@ bool OmniMon::OnKey(TermKeyCode key) {
     Stop();
     return true;
   }
+  if (key == '\t') {
+    if (!_TabSelectorShown) {
+      ShowTabSelector();
+    } else {
+      CloseTabSelector();
+    }
+    return true;
+  }
   return false;
+}
+
+void OmniMon::SelectTab(std::shared_ptr<TabChoice> choice) { _Curses.SetWindow(choice->GetContent(_Tick)); }
+
+void OmniMon::ShowTabSelector() {
+  assert(!_TabSelectorShown);
+  _Curses.SetPopupWindow(std::make_shared<TabSelector>(*this));
+  _TabSelectorShown = true;
+}
+
+void OmniMon::CloseTabSelector() {
+  assert(_TabSelectorShown);
+  _Curses.ClosePopupWindow();
+  _TabSelectorShown = false;
 }
 
 void OmniMon::Update() {

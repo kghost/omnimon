@@ -39,8 +39,6 @@ public:
     virtual DisplayLength GetMarginAfter() const = 0;
     virtual View& GetView() = 0;
 
-    virtual void DrawPrepare(const DrawPrepareContext& attrs) { GetView().DrawPrepare(attrs); }
-
     // This child will be removed at container's DrawPrepare
     void MarkForDeletion() { _MarkForDeletion = true; }
     bool IsMarkForDeletion() const { return _MarkForDeletion; }

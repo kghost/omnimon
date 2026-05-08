@@ -12,6 +12,7 @@ class View;
 
 class WindowClient : public InputHandler {
 public:
+  virtual ~WindowClient() = default;
   virtual std::shared_ptr<View> GetView() = 0;
 };
 

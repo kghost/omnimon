@@ -14,13 +14,13 @@ void Curses::HandleWinChangeSignal() {
   ioctl(0, TIOCGWINSZ, &ws);
   resizeterm(ws.ws_row, ws.ws_col);
 
-  if (_RootWindow) {
-    _RootWindow->SetLayout({{0, 0}, {ws.ws_row, ws.ws_col}});
-    Update();
+  if (_Windows) {
+    _Windows->SetLayout({{0, 0}, {ws.ws_row, ws.ws_col}});
   }
+  Update();
 }
 
-Curses::Curses(InputHandler& inputHandler) : _InputHandler(inputHandler), _RootWindow(nullptr) {
+Curses::Curses(InputHandler& inputHandler) : _InputHandler(inputHandler) {
   initscr();
   cbreak();
   noecho();
@@ -33,17 +33,23 @@ Curses::Curses(InputHandler& inputHandler) : _InputHandler(inputHandler), _RootW
 Curses::~Curses() { endwin(); }
 
 void Curses::HandleInput() {
-  if (_RootWindow) {
-    for (TermKeyCode ch = wgetch(_RootWindow->GetWindow()); ch > 0; ch = wgetch(_RootWindow->GetWindow())) {
-      if (_InputHandler.OnKey(ch)) {
+  if (_Windows) {
+    for (TermKeyCode ch = wgetch(_Windows->GetWindow()); ch > 0; ch = wgetch(_Windows->GetWindow())) {
+      if (_PopupWindows && _PopupWindows->OnKey(ch)) {
         continue;
       }
 
       assert(!_DrawScheduled);
-      _RootWindow->OnKey(ch);
-      if (_DrawScheduled) {
-        Update();
-        _DrawScheduled = false;
+      if (_Windows->OnKey(ch)) {
+        if (_DrawScheduled) {
+          Update();
+          _DrawScheduled = false;
+        }
+        continue;
+      }
+
+      if (_InputHandler.OnKey(ch)) {
+        continue;
       }
     }
   }
@@ -52,14 +58,26 @@ void Curses::HandleInput() {
 void Curses::ScheduleDraw() { _DrawScheduled = true; }
 
 void Curses::Update() {
-  if (_RootWindow) {
-    _RootWindow->Draw();
-    doupdate();
+  if (_Windows) {
+    _Windows->Draw();
   }
+  if (_PopupWindows) {
+    _PopupWindows->Draw();
+  }
+  doupdate();
 }
 
 void Curses::SetWindow(std::shared_ptr<WindowClient> client) {
-  _RootWindow = std::make_shared<Window>(Region{{0, 0}, {getmaxy(stdscr), getmaxx(stdscr)}}, client);
+  _Windows = std::make_shared<Window>(Region{{0, 0}, {getmaxy(stdscr), getmaxx(stdscr)}}, client);
+}
+
+void Curses::SetPopupWindow(std::shared_ptr<WindowClient> client) {
+  _PopupWindows = std::make_shared<Window>(Region{{0, 0}, {getmaxy(stdscr), getmaxx(stdscr)}}, client);
+}
+
+void Curses::ClosePopupWindow() {
+  _PopupWindows = nullptr;
+  Update();
 }
 
 } // namespace frontend::curses

@@ -4,6 +4,7 @@
 
 #include "ProcessOrder.hpp"
 #include "layouts/Window.hpp"
+#include "layouts/views/Selection.hpp"
 #include "layouts/views/Table.hpp"
 
 namespace frontend::curses {
