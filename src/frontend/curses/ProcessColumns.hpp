@@ -1,144 +1,127 @@
 #pragma once
 
+#include <ftxui/dom/table.hpp>
 #include <memory>
 #include <string>
 
 #include "ProcessTree.hpp"
-#include "layouts/views/Table.hpp"
-#include "layouts/views/TextView.hpp"
 
-namespace frontend::curses {
+namespace frontend::ftxui {
 
-class ProcessHeaderCell : public TableCellBinding {
+class ColumnCursor : public ProcessTree::Column {
 public:
-  ProcessHeaderCell(TextView::Align align, std::string text);
-  std::shared_ptr<View> CreateView(std::shared_ptr<Row> row, std::shared_ptr<Column> column) override;
+  std::string GetHeaderText() const override;
+  void RegisterRow(ProcessTree::Row& row) const override;
+  std::string GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const override;
+  void Decorate(::ftxui::TableSelection selection) const override;
+};
+
+class ColumnPid : public ProcessTree::Column {
+public:
+  std::string GetHeaderText() const override;
+  void RegisterRow(ProcessTree::Row& row) const override;
+  std::string GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const override;
+  void Decorate(::ftxui::TableSelection selection) const override;
+};
+
+class ColumnState : public ProcessTree::Column {
+public:
+  std::string GetHeaderText() const override;
+  void RegisterRow(ProcessTree::Row& row) const override;
+  std::string GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const override;
+  void Decorate(::ftxui::TableSelection selection) const override;
+};
+
+class ColumnUser : public ProcessTree::Column {
+public:
+  std::string GetHeaderText() const override;
+  void RegisterRow(ProcessTree::Row& row) const override;
+  std::string GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const override;
+  void Decorate(::ftxui::TableSelection selection) const override;
+};
+
+class ColumnCpu : public ProcessTree::Column {
+public:
+  std::string GetHeaderText() const override;
+  void RegisterRow(ProcessTree::Row& row) const override;
+  std::string GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const override;
+  void Decorate(::ftxui::TableSelection selection) const override;
+};
+
+class ColumnMem : public ProcessTree::Column {
+public:
+  std::string GetHeaderText() const override;
+  void RegisterRow(ProcessTree::Row& row) const override;
+  std::string GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const override;
+  void Decorate(::ftxui::TableSelection selection) const override;
+};
+
+class ColumnTime : public ProcessTree::Column {
+public:
+  std::string GetHeaderText() const override;
+  void RegisterRow(ProcessTree::Row& row) const override;
+  std::string GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const override;
+  void Decorate(::ftxui::TableSelection selection) const override;
+};
+
+class ColumnDiskRead : public ProcessTree::Column {
+public:
+  std::string GetHeaderText() const override;
+  void RegisterRow(ProcessTree::Row& row) const override;
+  std::string GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const override;
+  void Decorate(::ftxui::TableSelection selection) const override;
+};
+
+class ColumnDiskWrite : public ProcessTree::Column {
+public:
+  std::string GetHeaderText() const override;
+  void RegisterRow(ProcessTree::Row& row) const override;
+  std::string GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const override;
+  void Decorate(::ftxui::TableSelection selection) const override;
+};
+
+class ColumnDiskAccumulated : public ProcessTree::Column {
+public:
+  std::string GetHeaderText() const override;
+  void RegisterRow(ProcessTree::Row& row) const override;
+  std::string GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const override;
+  void Decorate(::ftxui::TableSelection selection) const override;
+};
+
+class ColumnIO : public ProcessTree::Column {
+public:
+  std::string GetHeaderText() const override;
+  void RegisterRow(ProcessTree::Row& row) const override;
+  std::string GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const override;
+  void Decorate(::ftxui::TableSelection selection) const override;
+};
+
+class ColumnIOAccumulated : public ProcessTree::Column {
+public:
+  std::string GetHeaderText() const override;
+  void RegisterRow(ProcessTree::Row& row) const override;
+  std::string GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const override;
+  void Decorate(::ftxui::TableSelection selection) const override;
+};
+
+class ColumnStart : public ProcessTree::Column {
+public:
+  std::string GetHeaderText() const override;
+  void RegisterRow(ProcessTree::Row& row) const override;
+  std::string GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const override;
+  void Decorate(::ftxui::TableSelection selection) const override;
+};
+
+class ColumnCommand : public ProcessTree::Column {
+public:
+  std::string GetHeaderText() const override;
+  void RegisterRow(ProcessTree::Row& row) const override;
+  std::string GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const override;
+  void Decorate(::ftxui::TableSelection selection) const override;
 
 private:
-  std::shared_ptr<TextView> _View;
+  static std::string TreeString(std::shared_ptr<Process> process);
+  static std::string FormatCommand(const std::string& command);
 };
 
-class ProcessDataAbstractCell : public TableCellBinding {
-public:
-  virtual void OnRowBindingChanged() = 0;
-};
-
-class ProcessDataCell : public ProcessDataAbstractCell {
-public:
-  explicit ProcessDataCell(std::shared_ptr<Column> column,
-                           std::shared_ptr<ProcessTree::ProcessTreeTableDataBinding> row, TextView::Align align);
-
-  std::shared_ptr<View> CreateView(std::shared_ptr<Row> row, std::shared_ptr<Column> column) override;
-
-protected:
-  std::shared_ptr<Column> _Column;
-  std::shared_ptr<ProcessTree::ProcessTreeTableDataBinding> _Row;
-  std::shared_ptr<TextView> _View;
-};
-
-class ProcessColumn : public TableColumnBinding {
-public:
-  virtual std::shared_ptr<TableCellBinding> Header() const = 0;
-  virtual std::shared_ptr<TableCellBinding> Data(ProcessTree& tree, std::shared_ptr<Column> column,
-                                                 std::shared_ptr<ProcessTree::ProcessTreeTableDataBinding> row) = 0;
-};
-
-class ProcessColumnCursor : public ProcessColumn {
-public:
-  std::shared_ptr<TableCellBinding> Header() const override;
-  std::shared_ptr<TableCellBinding> Data(ProcessTree& tree, std::shared_ptr<Column> column,
-                                         std::shared_ptr<ProcessTree::ProcessTreeTableDataBinding> row) override;
-};
-
-class ProcessColumnPid : public ProcessColumn {
-public:
-  std::shared_ptr<TableCellBinding> Header() const override;
-  std::shared_ptr<TableCellBinding> Data(ProcessTree& tree, std::shared_ptr<Column> column,
-                                         std::shared_ptr<ProcessTree::ProcessTreeTableDataBinding> row) override;
-};
-
-class ProcessColumnState : public ProcessColumn {
-public:
-  std::shared_ptr<TableCellBinding> Header() const override;
-  std::shared_ptr<TableCellBinding> Data(ProcessTree& tree, std::shared_ptr<Column> column,
-                                         std::shared_ptr<ProcessTree::ProcessTreeTableDataBinding> row) override;
-};
-
-class ProcessColumnUser : public ProcessColumn {
-public:
-  std::shared_ptr<TableCellBinding> Header() const override;
-  std::shared_ptr<TableCellBinding> Data(ProcessTree& tree, std::shared_ptr<Column> column,
-                                         std::shared_ptr<ProcessTree::ProcessTreeTableDataBinding> row) override;
-};
-
-class ProcessColumnCpu : public ProcessColumn {
-public:
-  std::shared_ptr<TableCellBinding> Header() const override;
-  std::shared_ptr<TableCellBinding> Data(ProcessTree& tree, std::shared_ptr<Column> column,
-                                         std::shared_ptr<ProcessTree::ProcessTreeTableDataBinding> row) override;
-};
-
-class ProcessColumnMem : public ProcessColumn {
-public:
-  std::shared_ptr<TableCellBinding> Header() const override;
-  std::shared_ptr<TableCellBinding> Data(ProcessTree& tree, std::shared_ptr<Column> column,
-                                         std::shared_ptr<ProcessTree::ProcessTreeTableDataBinding> row) override;
-};
-
-class ProcessColumnTime : public ProcessColumn {
-public:
-  std::shared_ptr<TableCellBinding> Header() const override;
-  std::shared_ptr<TableCellBinding> Data(ProcessTree& tree, std::shared_ptr<Column> column,
-                                         std::shared_ptr<ProcessTree::ProcessTreeTableDataBinding> row) override;
-};
-
-class ProcessColumnDiskRead : public ProcessColumn {
-public:
-  std::shared_ptr<TableCellBinding> Header() const override;
-  std::shared_ptr<TableCellBinding> Data(ProcessTree& tree, std::shared_ptr<Column> column,
-                                         std::shared_ptr<ProcessTree::ProcessTreeTableDataBinding> row) override;
-};
-
-class ProcessColumnDiskWrite : public ProcessColumn {
-public:
-  std::shared_ptr<TableCellBinding> Header() const override;
-  std::shared_ptr<TableCellBinding> Data(ProcessTree& tree, std::shared_ptr<Column> column,
-                                         std::shared_ptr<ProcessTree::ProcessTreeTableDataBinding> row) override;
-};
-
-class ProcessColumnDiskAccumulated : public ProcessColumn {
-public:
-  std::shared_ptr<TableCellBinding> Header() const override;
-  std::shared_ptr<TableCellBinding> Data(ProcessTree& tree, std::shared_ptr<Column> column,
-                                         std::shared_ptr<ProcessTree::ProcessTreeTableDataBinding> row) override;
-};
-
-class ProcessColumnIO : public ProcessColumn {
-public:
-  std::shared_ptr<TableCellBinding> Header() const override;
-  std::shared_ptr<TableCellBinding> Data(ProcessTree& tree, std::shared_ptr<Column> column,
-                                         std::shared_ptr<ProcessTree::ProcessTreeTableDataBinding> row) override;
-};
-
-class ProcessColumnIOAccumulated : public ProcessColumn {
-public:
-  std::shared_ptr<TableCellBinding> Header() const override;
-  std::shared_ptr<TableCellBinding> Data(ProcessTree& tree, std::shared_ptr<Column> column,
-                                         std::shared_ptr<ProcessTree::ProcessTreeTableDataBinding> row) override;
-};
-
-class ProcessColumnStart : public ProcessColumn {
-public:
-  std::shared_ptr<TableCellBinding> Header() const override;
-  std::shared_ptr<TableCellBinding> Data(ProcessTree& tree, std::shared_ptr<Column> column,
-                                         std::shared_ptr<ProcessTree::ProcessTreeTableDataBinding> row) override;
-};
-
-class ProcessColumnCommand : public ProcessColumn {
-public:
-  std::shared_ptr<TableCellBinding> Header() const override;
-  std::shared_ptr<TableCellBinding> Data(ProcessTree& tree, std::shared_ptr<Column> column,
-                                         std::shared_ptr<ProcessTree::ProcessTreeTableDataBinding> row) override;
-};
-
-} // namespace frontend::curses
+} // namespace frontend::ftxui

@@ -1,194 +1,162 @@
 #include "ProcessTree.hpp"
 
-#include <memory>
-#include <vector>
+#include <ftxui/dom/elements.hpp>
+#include <ftxui/dom/table.hpp>
 
-#include "OmniMon.hpp"
 #include "Process.hpp"
-#include "layouts/views/Container.hpp"
-
 #include "ProcessColumns.hpp"
 
-namespace frontend::curses {
+namespace frontend::ftxui {
 
 ProcessTree::ProcessTree(std::shared_ptr<backend::metrics::SimplePublisher<int>> tick)
-    : _Table(std::make_shared<Table>(*this, *this)),
-      _TickUpdater(backend::metrics::MakeSubscriber(tick, [this](auto tick) { this->Update(); })) {
-
-  constexpr const auto Forward = Container::ChildArrangement::ArrangementType::Forward;
-  constexpr const auto FillRest = Container::ChildArrangement::ArrangementType::FillRest;
-  _Table->AppendColumn(std::make_shared<ProcessColumnCursor>(), Forward, 1, 0, 0);
-  _Table->AppendColumn(std::make_shared<ProcessColumnPid>(), Forward, 3, 1, 0);
-  _Table->AppendColumn(std::make_shared<ProcessColumnUser>(), Forward, 4, 1, 0);
-  _Table->AppendColumn(std::make_shared<ProcessColumnState>(), Forward, 1, 1, 0);
-  _Table->AppendColumn(std::make_shared<ProcessColumnCpu>(), Forward, 4, 1, 0);
-  _Table->AppendColumn(std::make_shared<ProcessColumnMem>(), Forward, 4, 1, 0);
-  _Table->AppendColumn(std::make_shared<ProcessColumnTime>(), Forward, 2, 1, 0);
-  _Table->AppendColumn(std::make_shared<ProcessColumnDiskRead>(), Forward, 5, 1, 0);
-  _Table->AppendColumn(std::make_shared<ProcessColumnDiskWrite>(), Forward, 5, 1, 0);
-  _Table->AppendColumn(std::make_shared<ProcessColumnDiskAccumulated>(), Forward, 5, 1, 0);
-  _Table->AppendColumn(std::make_shared<ProcessColumnIO>(), Forward, 5, 1, 0);
-  _Table->AppendColumn(std::make_shared<ProcessColumnIOAccumulated>(), Forward, 5, 1, 0);
-  _Table->AppendColumn(std::make_shared<ProcessColumnStart>(), Forward, 5, 1, 0);
-  _Table->AppendColumn(std::make_shared<ProcessColumnCommand>(), FillRest, 1, 1, 0);
-
-  _Table->AppendRow(std::make_shared<ProcessTreeTableHeaderBinding>(), _TableHeaderHeight);
+    : _Columns(CreateDefaultColumns()), _CursorRow(_Rows.end()), _CursorColumn(_Columns.end()),
+      _TickUpdater(backend::metrics::MakeSubscriber<backend::metrics::SimplePublisher<int>>(
+          tick, [this](auto tick) { this->Update(); })) {
+  Update();
 }
 
-std::shared_ptr<TableCellBinding> ProcessTree::NewCell(Table& table, std::shared_ptr<Row> row,
-                                                       std::shared_ptr<Column> column) {
-  auto binding = std::dynamic_pointer_cast<ProcessTreeTableRowBinding>(row->GetBinding());
-  return binding->CreateCell(*this, column, row->GetBinding());
+void ProcessTree::MoveCursorAndDraw(ssize_t offset) {
+  auto selectedProcess = _ProcessCollection.MoveCursor((*_CursorRow)->Process, offset);
+  auto ps = _ProcessCollection.GetAround(selectedProcess, std::distance(_Rows.begin(), _CursorRow), GetTableCapacity());
+  UpdateData(selectedProcess, ps);
 }
 
 void ProcessTree::Update() {
-  auto cursor = _Table->GetCursorRow();
-  if (cursor) {
+  auto size = GetTableCapacity();
+  if (size > 0) {
     _ProcessCollection.UpdateList();
-    auto binding = std::dynamic_pointer_cast<ProcessTreeTableDataBinding>(cursor->GetBinding());
-    auto selectedProcess = _ProcessCollection.GetValidAncestor(binding->GetProcess());
-    auto ps = _ProcessCollection.GetAround(selectedProcess, binding->GetIndex(), GetHeight());
-    UpdateTable(selectedProcess, ps);
-  } else {
-    _ProcessCollection.UpdateList();
-    auto ps = _ProcessCollection.GetTopK(GetHeight());
-    if (!ps.empty()) {
-      UpdateTable(ps[0], ps);
+    auto cursor = _CursorRow;
+    std::vector<std::shared_ptr<Process>> ps;
+    std::shared_ptr<Process> selectedProcess;
+    if (_CursorRow != _Rows.end()) {
+      selectedProcess = _ProcessCollection.GetValidAncestor((*_CursorRow)->Process);
+      ps = _ProcessCollection.GetAround(selectedProcess, std::distance(_Rows.begin(), _CursorRow), size);
     } else {
-      UpdateTable(nullptr, ps);
-    }
-  }
-}
-
-DisplayLength ProcessTree::GetHeight() const {
-  DisplayLength height = _Table->GetLayout().Height;
-  if (height < _TableHeaderHeight) {
-    return 0;
-  } else {
-    return height - _TableHeaderHeight;
-  }
-}
-
-void ProcessTree::UpdateTable(std::shared_ptr<frontend::curses::Process> selectedProcess,
-                              const std::vector<std::shared_ptr<frontend::curses::Process>>& ps) {
-  auto rows = GetDataRows();
-  int i = 0;
-  for (auto row : rows) {
-    if (i < ps.size()) {
-      auto binding = std::dynamic_pointer_cast<ProcessTreeTableDataBinding>(row->GetBinding());
-      auto process = ps[i];
-      if (selectedProcess == process) {
-        _Table->SetCursorRow(row);
+      ps = _ProcessCollection.GetTopK(size);
+      if (!ps.empty()) {
+        selectedProcess = ps[0];
       }
-      binding->UpdateProcess(row, process);
-    } else {
-      row->MarkForDeletion();
-      auto binding = std::dynamic_pointer_cast<ProcessTreeTableDataBinding>(row->GetBinding());
-      binding->UpdateProcess(row, nullptr);
     }
-    i++;
-  }
 
-  while (i < ps.size()) {
-    auto binding = std::make_shared<ProcessTreeTableDataBinding>(i, ps[i]);
-    auto row = _Table->AppendRow(binding, 1);
-    if (selectedProcess == ps[i]) {
-      _Table->SetCursorRow(row);
-    }
-    i++;
+    UpdateData(selectedProcess, ps);
   }
 }
 
-bool ProcessTree::OnKey(TermKeyCode key) {
-  auto row = _Table->GetCursorRow();
-  if (row == nullptr) {
+void ProcessTree::UpdateData(std::shared_ptr<Process> selectedProcess, std::vector<std::shared_ptr<Process>> ps) {
+  std::map<backend::process::PidType, std::reference_wrapper<std::unique_ptr<Row>>> existingProcesses;
+  for (auto& row : _Rows) {
+    if (row->Process->Exists()) {
+      existingProcesses.emplace(row->Process->GetPid(), row);
+    }
+  }
+
+  std::list<std::unique_ptr<Row>> oldRows;
+  oldRows.swap(_Rows);      // Move old rows to a temporary vector for processing
+  _CursorRow = _Rows.end(); // Reset cursor row, will be updated in the loop below
+  for (auto process : ps) {
+    auto it = existingProcesses.find(process->GetPid());
+    if (it != existingProcesses.end()) {
+      _Rows.emplace_back(std::move(it->second.get()));
+    } else {
+      _Rows.push_back(std::make_unique<Row>(Row{.Process = process}));
+      for (auto& column : _Columns) {
+        column->RegisterRow(*_Rows.back());
+      }
+    }
+    if (process == selectedProcess) {
+      _CursorRow = std::prev(_Rows.end());
+    }
+  }
+}
+
+void ProcessTree::OnTerminalSizeChange() { Update(); }
+
+bool ProcessTree::OnEvent(::ftxui::Event event) {
+  if (event == ::ftxui::Event::ArrowUp) {
+    if (_CursorRow != _Rows.begin()) {
+      _CursorRow = std::prev(_CursorRow);
+    } else {
+      MoveCursorAndDraw(-1); // Move cursor to the previous process and redraw
+    }
+    return true;
+  } else if (event == ::ftxui::Event::ArrowDown) {
+    if (_CursorRow != std::prev(_Rows.end())) {
+      _CursorRow = std::next(_CursorRow);
+    } else {
+      MoveCursorAndDraw(1); // Move cursor to the next process and redraw
+    }
+    return true;
+  } else if (event == ::ftxui::Event::PageUp) {
+    MoveCursorAndDraw(-GetTableCapacity()); // Move cursor up by one page and redraw
+    return true;
+  } else if (event == ::ftxui::Event::PageDown) {
+    MoveCursorAndDraw(GetTableCapacity()); // Move cursor down by one page and redraw
+    return true;
+  } else {
     return false;
   }
-
-  // Move cursor of selected row
-  switch (key) {
-  case KEY_UP: {
-    auto prev = _Table->PrevRow(row);
-    if (prev != nullptr) {
-      auto prevBinding = std::dynamic_pointer_cast<ProcessTreeTableDataBinding>(prev->GetBinding());
-      if (prevBinding != nullptr) {
-        _Table->SetCursorRow(prev);
-      } else {
-        MoveCursorAndDraw(-1);
-      }
-    } else {
-      MoveCursorAndDraw(-1);
-    }
-    OmniMon::GetInstance().ScheduleDraw();
-    return true;
-  }
-  case KEY_DOWN: {
-    auto next = _Table->NextRow(row);
-    if (next != nullptr) {
-      auto nextBinding = std::dynamic_pointer_cast<ProcessTreeTableDataBinding>(next->GetBinding());
-      if (nextBinding != nullptr) {
-        _Table->SetCursorRow(next);
-      } else {
-        MoveCursorAndDraw(1);
-      }
-    } else {
-      MoveCursorAndDraw(1);
-    }
-    OmniMon::GetInstance().ScheduleDraw();
-    return true;
-  }
-  case KEY_PPAGE: {
-    MoveCursorAndDraw(-GetHeight());
-    OmniMon::GetInstance().ScheduleDraw();
-    return true;
-  }
-  case KEY_NPAGE: {
-    MoveCursorAndDraw(GetHeight());
-    OmniMon::GetInstance().ScheduleDraw();
-    return true;
-  }
-  }
-
-  // Handle key for selected row
-  if (row->GetBinding()->OnKey(key)) {
-    return true;
-  }
-
-  return false;
 }
 
-void ProcessTree::MoveCursorAndDraw(DisplayLength offset) {
-  auto binding = std::dynamic_pointer_cast<ProcessTreeTableDataBinding>(_Table->GetCursorRow()->GetBinding());
-  auto p = _ProcessCollection.MoveCursor(binding->GetProcess(), offset);
-  auto ps = _ProcessCollection.GetAround(p, binding->GetIndex(), GetHeight());
-  UpdateTable(p, ps);
-}
+::ftxui::Element ProcessTree::Render() {
+  using namespace ::ftxui;
 
-std::shared_ptr<TableCellBinding>
-ProcessTree::ProcessTreeTableHeaderBinding::CreateCell(ProcessTree& tree, std::shared_ptr<Column> column,
-                                                       std::shared_ptr<TableRowBinding> row) {
-  return std::dynamic_pointer_cast<ProcessColumn>(column->GetBinding())->Header();
-}
-
-ProcessTree::ProcessTreeTableDataBinding::ProcessTreeTableDataBinding(DisplayLength index,
-                                                                      std::shared_ptr<Process> process)
-    : _Index(index), _Process(process) {}
-
-std::shared_ptr<TableCellBinding>
-ProcessTree::ProcessTreeTableDataBinding::CreateCell(ProcessTree& tree, std::shared_ptr<Column> column,
-                                                     std::shared_ptr<TableRowBinding> row) {
-  return std::dynamic_pointer_cast<ProcessColumn>(column->GetBinding())
-      ->Data(tree, column, std::dynamic_pointer_cast<ProcessTree::ProcessTreeTableDataBinding>(row));
-}
-
-void ProcessTree::ProcessTreeTableDataBinding::UpdateProcess(std::shared_ptr<Row> row,
-                                                             std::shared_ptr<Process> process) {
-  if (_Process != process) {
-    _Process = process;
-    for (auto cell : row->GetCells()) {
-      std::dynamic_pointer_cast<ProcessDataAbstractCell>(cell->GetBinding())->OnRowBindingChanged();
-    }
+  if (_Rows.empty()) {
+    return filler() | reflect(_TableSize);
   }
+
+  std::vector<std::vector<std::string>> data;
+  // Header
+  data.push_back(_Columns |
+                 std::views::transform([](const auto& column) -> std::string { return column->GetHeaderText(); }) |
+                 std::ranges::to<std::vector>());
+
+  // Data
+  for (auto& row : _Rows) {
+    data.push_back(_Columns | std::views::transform([&](const auto& column) -> std::string {
+                     bool isRowSelected = (row == *_CursorRow);
+                     bool isColumnSelected = (column == *_CursorColumn);
+                     return column->GetDataText(isRowSelected, isColumnSelected, *row);
+                   }) |
+                   std::ranges::to<std::vector>());
+  }
+
+  auto table = ::ftxui::Table(data);
+  table.SelectAll().DecorateSeparatorVertical(
+      ::ftxui::size(::ftxui::WidthOrHeight::WIDTH, ::ftxui::Constraint::EQUAL, 1));
+  table.SelectRow(0).Decorate(bold);
+  table.SelectRow(0).Decorate(underlined);
+
+  for (auto [index, column] : std::views::enumerate(_Columns)) {
+    column->Decorate(table.SelectColumn(index));
+  }
+
+  return table.Render() | frame | reflect(_TableSize);
 }
 
-} // namespace frontend::curses
+std::list<std::unique_ptr<ProcessTree::Column>> ProcessTree::CreateDefaultColumns() {
+  std::list<std::unique_ptr<Column>> columns;
+  columns.push_back(std::make_unique<ColumnCursor>());
+  columns.push_back(std::make_unique<ColumnPid>());
+  columns.push_back(std::make_unique<ColumnState>());
+  columns.push_back(std::make_unique<ColumnUser>());
+  columns.push_back(std::make_unique<ColumnCpu>());
+  columns.push_back(std::make_unique<ColumnMem>());
+  columns.push_back(std::make_unique<ColumnTime>());
+  columns.push_back(std::make_unique<ColumnDiskRead>());
+  columns.push_back(std::make_unique<ColumnDiskWrite>());
+  columns.push_back(std::make_unique<ColumnDiskAccumulated>());
+  columns.push_back(std::make_unique<ColumnIO>());
+  columns.push_back(std::make_unique<ColumnIOAccumulated>());
+  columns.push_back(std::make_unique<ColumnStart>());
+  columns.push_back(std::make_unique<ColumnCommand>());
+  return columns;
+}
+
+ssize_t ProcessTree::GetTableCapacity() const {
+  if (_TableSize.y_max + 1 <= HeaderHeight) {
+    return 0; // No space for data rows
+  }
+  return _TableSize.y_max + 1 - HeaderHeight;
+}
+
+} // namespace frontend::ftxui

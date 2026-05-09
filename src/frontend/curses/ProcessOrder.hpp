@@ -8,7 +8,7 @@
 #include "../../backend/process/ProcessListing.hpp"
 #include "../../utils/StringUtils.hpp"
 
-namespace frontend::curses {
+namespace frontend::ftxui {
 
 class Process;
 
@@ -21,12 +21,11 @@ public:
 
   void UpdateList();
 
-  std::shared_ptr<Process> MoveCursor(std::shared_ptr<Process> current, DisplayLength offset);
+  std::shared_ptr<Process> MoveCursor(std::shared_ptr<Process> current, ssize_t offset);
 
   std::shared_ptr<Process> GetValidAncestor(std::shared_ptr<Process> process);
-  std::vector<std::shared_ptr<Process>> GetTopK(size_t k);
-  std::vector<std::shared_ptr<Process>> GetAround(std::shared_ptr<Process> process, DisplayLength index,
-                                                  DisplayLength max);
+  std::vector<std::shared_ptr<Process>> GetTopK(ssize_t k);
+  std::vector<std::shared_ptr<Process>> GetAround(std::shared_ptr<Process> process, ssize_t index, ssize_t max);
 
   void operator()(backend::process::PidType pid, const std::filesystem::path& dir) override;
 
@@ -35,4 +34,4 @@ private:
   std::unordered_map<backend::process::PidType, std::shared_ptr<Process>> _ProcessCache;
 };
 
-} // namespace frontend::curses
+} // namespace frontend::ftxui

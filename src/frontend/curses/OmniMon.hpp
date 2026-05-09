@@ -1,17 +1,18 @@
 #pragma once
 
-#include <signal.h>
-#include <string>
-#include <vector>
+#include <chrono>
+#include <csignal>
+#include <ftxui/component/component.hpp>
+#include <ftxui/component/loop.hpp>
+#include <ftxui/component/screen_interactive.hpp>
+#include <memory>
 
 #include "../../backend/metrics/SimplePublisher.hpp"
 #include "Events.hpp"
+#include "FtxuiView.hpp"
 #include "Options.hpp"
-#include "layouts/Base.hpp"
-#include "layouts/Curses.hpp"
-#include "layouts/Window.hpp"
 
-namespace frontend::curses {
+namespace frontend::ftxui {
 
 class OmniMon;
 class TabChoice;
@@ -49,7 +50,7 @@ private:
 
 class IO : public EventHandle {
 public:
-  explicit IO(EventLoop& loop, OmniMon& mon) : EventHandle(loop, 0), _OmniMon(mon) { ScheduleRead(); }
+  explicit IO(EventLoop& loop, OmniMon& mon) : EventHandle(loop, STDOUT_FILENO), _OmniMon(mon) { ScheduleRead(); }
 
   void OnRead() override;
   void OnWrite() override {}
@@ -58,7 +59,7 @@ private:
   OmniMon& _OmniMon;
 };
 
-class OmniMon : public InputHandler {
+class OmniMon {
 public:
   static OmniMon& GetInstance();
 
@@ -67,15 +68,12 @@ private:
   ~OmniMon() = default;
 
 public:
-  void ScheduleDraw(); // TODO: remove this function
-  bool OnKey(TermKeyCode key) override;
-
   void HandleWinChangeSignal();
   void OnStdInRead();
 
   void Update();
-  void Run() { _Loop.Run(); }
-  void Stop() { _Loop.Stop(); }
+  void Run();
+  void Stop();
 
   void SelectTab(std::shared_ptr<TabChoice> choice);
   void ShowTabSelector();
@@ -83,14 +81,17 @@ public:
 
 private:
   EventLoop _Loop;
-  // Signal handlers must be created before the curses instance.
   SigInt _SigInt;
   SigWinChange _SigWinChange;
   IO _StdIO;
-  Curses _Curses;
+
   std::shared_ptr<backend::metrics::SimplePublisher<int>> _Tick;
   Timer _Timer;
+
+  ::ftxui::App _Screen;
+  std::unique_ptr<::ftxui::Loop> _FtxuiLoop;
+  std::shared_ptr<FtxuiView> _ActiveView;
   bool _TabSelectorShown = false;
 };
 
-} // namespace frontend::curses
+} // namespace frontend::ftxui

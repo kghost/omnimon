@@ -6,7 +6,7 @@
 
 #include "../../backend/process/Process.hpp"
 
-namespace frontend::curses {
+namespace frontend::ftxui {
 
 class Process : public backend::process::Process {
 public:
@@ -44,4 +44,4 @@ private:
   std::map<backend::process::PidType, std::weak_ptr<Process>> _Children;
 };
 
-} // namespace frontend::curses
+} // namespace frontend::ftxui

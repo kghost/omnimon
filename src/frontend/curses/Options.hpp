@@ -2,13 +2,19 @@
 
 #include <chrono>
 
-namespace frontend::curses {
+namespace frontend::ftxui {
 
 class Config {
 public:
-  static Config GetInstance();
+  static Config& GetInstance() {
+    static Config instance;
+    return instance;
+  }
 
-  std::chrono::steady_clock::duration RefreshInterval = std::chrono::seconds(1);
+  std::chrono::milliseconds RefreshInterval = std::chrono::milliseconds(1000);
+
+private:
+  Config() = default;
 };
 
-} // namespace frontend::curses
+} // namespace frontend::ftxui

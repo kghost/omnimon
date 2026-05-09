@@ -1,6 +1,6 @@
 #include "Process.hpp"
 
-namespace frontend::curses {
+namespace frontend::ftxui {
 
 Process::Process(const std::filesystem::path& dir) : backend::process::Process(dir) {}
 
@@ -35,4 +35,4 @@ std::list<std::shared_ptr<Process>> Process::GetAncestors(std::shared_ptr<Proces
   return ancestors;
 }
 
-} // namespace frontend::curses
+} // namespace frontend::ftxui

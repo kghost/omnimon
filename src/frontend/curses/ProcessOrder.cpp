@@ -8,7 +8,7 @@
 
 #include "Process.hpp"
 
-namespace frontend::curses {
+namespace frontend::ftxui {
 
 class ProcessOrderTree {
 public:
@@ -52,7 +52,7 @@ void ProcessCollection::operator()(backend::process::PidType pid, const std::fil
   }
 }
 
-std::shared_ptr<Process> ProcessCollection::MoveCursor(std::shared_ptr<Process> current, DisplayLength offset) {
+std::shared_ptr<Process> ProcessCollection::MoveCursor(std::shared_ptr<Process> current, ssize_t offset) {
   // Move the cursor to the process at the given offset. Return the process at the offset.
   // If the offset is out of bounds, return the first or last process.
   if (offset == 0) {
@@ -81,14 +81,14 @@ std::shared_ptr<Process> ProcessCollection::GetValidAncestor(std::shared_ptr<Pro
   return *std::find_if(selection.rbegin(), selection.rend(), [](auto p) { return p->Exists(); });
 }
 
-std::vector<std::shared_ptr<Process>> ProcessCollection::GetTopK(size_t k) {
+std::vector<std::shared_ptr<Process>> ProcessCollection::GetTopK(ssize_t k) {
   std::vector<std::shared_ptr<Process>> result(k);
   auto [_, end] = std::ranges::partial_sort_copy(_ProcessCache | std::views::values, result, ProcessOrderTree());
   return {result.begin(), end};
 }
 
-std::vector<std::shared_ptr<Process>> ProcessCollection::GetAround(std::shared_ptr<Process> process,
-                                                                   DisplayLength index, DisplayLength max) {
+std::vector<std::shared_ptr<Process>> ProcessCollection::GetAround(std::shared_ptr<Process> process, ssize_t index,
+                                                                   ssize_t max) {
   if (_ProcessCache.size() <= max) {
     auto range = _ProcessCache | std::views::values;
     std::vector<std::shared_ptr<Process>> result(range.begin(), range.end());
@@ -99,9 +99,9 @@ std::vector<std::shared_ptr<Process>> ProcessCollection::GetAround(std::shared_p
   } else {
     // Count how many processes are before and after the selected process.
     // The selected process itself is not counted.
-    DisplayLength countBefore =
+    ssize_t countBefore =
         std::ranges::count_if(_ProcessCache, [&](auto& p) { return ProcessOrderTree()(p.second, process); });
-    DisplayLength countAfter = _ProcessCache.size() - countBefore - 1;
+    ssize_t countAfter = _ProcessCache.size() - countBefore - 1;
 
     // The countBefore and countAfter variables are now the number of processes before and after the selected process,
     // but they might be too large, because the cursor might be at the beginning or end of the list.
@@ -139,4 +139,4 @@ std::vector<std::shared_ptr<Process>> ProcessCollection::GetAround(std::shared_p
   }
 }
 
-} // namespace frontend::curses
+} // namespace frontend::ftxui
