@@ -13,7 +13,7 @@ class EventLoop;
 
 class EventHandle {
 public:
-  explicit EventHandle(EventLoop& loop, int _Fd);
+  explicit EventHandle(EventLoop& loop, int fd, bool nonblocking);
   virtual ~EventHandle();
 
   EventHandle(const EventHandle&) = delete;

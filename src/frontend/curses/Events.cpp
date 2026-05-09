@@ -16,8 +16,10 @@
 namespace frontend::ftxui {
 
 // Handle
-EventHandle::EventHandle(EventLoop& loop, int _Fd) : _Loop(loop), _Fd(_Fd) {
-  PosixE(fcntl(_Fd, F_SETFL, PosixE(fcntl(_Fd, F_GETFL, 0)) | O_NONBLOCK));
+EventHandle::EventHandle(EventLoop& loop, int fd, bool nonblocking) : _Loop(loop), _Fd(fd) {
+  if (nonblocking) {
+    PosixE(fcntl(_Fd, F_SETFL, PosixE(fcntl(_Fd, F_GETFL, 0)) | O_NONBLOCK));
+  }
   _Loop.AddHandle(*this);
 }
 
@@ -53,7 +55,7 @@ void EventHandle::OnEvent(uint32_t events) {
 
 // Notification
 EventNotification::EventNotification(EventLoop& loop)
-    : EventHandle(loop, PosixE(eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK))) {
+    : EventHandle(loop, PosixE(eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK)), true) {
   ScheduleRead();
 }
 
@@ -80,7 +82,7 @@ void EventNotification::OnWrite() {
 void EventNotification::Notify(uint64_t amount) { PosixE(write(_Fd, &amount, sizeof(amount))); }
 
 // Signal
-EventSignal::EventSignal(EventLoop& loop, SigNumType signum) : EventHandle(loop, PosixE(CreateSignalFd(signum))) {
+EventSignal::EventSignal(EventLoop& loop, SigNumType signum) : EventHandle(loop, PosixE(CreateSignalFd(signum)), true) {
   ScheduleRead();
 }
 
@@ -118,7 +120,7 @@ int EventSignal::CreateSignalFd(SigNumType signum) {
 // Timer
 EventTimer::EventTimer(EventLoop& loop, std::chrono::steady_clock::duration timeout,
                        std::chrono::steady_clock::duration repeat)
-    : EventHandle(loop, PosixE(timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK | TFD_CLOEXEC))) {
+    : EventHandle(loop, PosixE(timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK | TFD_CLOEXEC)), true) {
   struct itimerspec timer;
 
   timer.it_value = utils::DurationToTimeSpec(timeout);

@@ -54,15 +54,18 @@ void OmniMon::Run() {
   });
 
   auto component = CatchEvent(renderer, [&](Event event) -> bool {
-    if (event == Event::Character('q')) {
+    if (event == Event::Custom) {
+      // Custom event to trigger a screen refresh
+      return true;
+    } else if (event == Event::Character('q')) {
       Stop();
       return true;
-    }
-    if (_ActiveView && _ActiveView->OnEvent(event)) {
+    } else if (_ActiveView && _ActiveView->OnEvent(event)) {
       _Screen.PostEvent(Event::Custom);
       return true;
+    } else {
+      return false;
     }
-    return false;
   });
 
   // Default view

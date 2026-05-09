@@ -50,7 +50,7 @@ private:
 
 class IO : public EventHandle {
 public:
-  explicit IO(EventLoop& loop, OmniMon& mon) : EventHandle(loop, STDOUT_FILENO), _OmniMon(mon) { ScheduleRead(); }
+  explicit IO(EventLoop& loop, OmniMon& mon) : EventHandle(loop, STDIN_FILENO, false), _OmniMon(mon) { ScheduleRead(); }
 
   void OnRead() override;
   void OnWrite() override {}
