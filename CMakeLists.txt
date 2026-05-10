@@ -11,6 +11,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED true)
 set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+if(POLICY CMP0077)
+  cmake_policy(SET CMP0077 NEW)
+endif()
+
+set(FTXUI_BUILD_EXAMPLES OFF)
+set(FTXUI_ENABLE_INSTALL OFF)
+
 #add_compile_options("-stdlib=libc++" "-fexperimental-library")
 
 execute_process(
