@@ -3,11 +3,11 @@
 #include <ftxui/component/component.hpp>
 #include <ftxui/dom/elements.hpp>
 
-#include "ProcessTree.hpp"
+#include "TabSelector.hpp"
 
 namespace frontend::ftxui {
 
-void Timer::OnTimer() { _OmniMon.Update(); }
+void Timer::OnTimer() { _OmniMon.TimerUpdate(); }
 
 void SigWinChange::OnSignal(SigNumType signum) { _OmniMon.HandleWinChangeSignal(); }
 
@@ -16,24 +16,17 @@ void IO::OnRead() {
   ScheduleRead();
 }
 
-OmniMon& OmniMon::GetInstance() {
-  static OmniMon instance;
-  return instance;
-}
+void DeferredRender::OnNotification(uint64_t amount) { _OmniMon.Refresh(); }
 
 OmniMon::OmniMon()
-    : _Loop(), _SigInt(_Loop), _SigWinChange(_Loop, *this), _StdIO(_Loop, *this),
+    : _Loop(), _SigInt(_Loop), _SigWinChange(_Loop, *this), _DeferredRender(_Loop, *this), _StdIO(_Loop, *this),
       _Tick(std::make_shared<backend::metrics::SimplePublisher<int>>()), _Timer(_Loop, *this),
-      _Screen(::ftxui::App::FullscreenAlternateScreen()) {
+      _Screen(::ftxui::App::FullscreenAlternateScreen()),
+      _ActiveView(TabSelector::GetDefaultTab()->CreateView(_Tick, [this] { this->ScheduleRefresh(); })) {
   _Screen.TrackMouse(false); // Disables mouse tracking
 }
 
 void OmniMon::HandleWinChangeSignal() {
-  // Run twice to ensure the screen is properly resized and rendered after a window size change
-  // First time to recalculate layout based on new size, second time to render the updated layout
-  _Screen.PostEvent(::ftxui::Event::Custom);
-  _FtxuiLoop->RunOnce();
-  _ActiveView->OnTerminalSizeChange(); // Trigger initial size update
   _Screen.PostEvent(::ftxui::Event::Custom);
   _FtxuiLoop->RunOnce();
 }
@@ -47,21 +40,36 @@ void OmniMon::Run() {
   using namespace ::ftxui;
 
   auto renderer = Renderer([&] {
-    if (_ActiveView) {
-      return _ActiveView->Render();
+    if (_TabSelector.has_value()) {
+      return dbox({_ActiveView->Render(), (*_TabSelector)->Render()});
     }
+    return _ActiveView->Render();
     return text("Loading...");
   });
 
   auto component = CatchEvent(renderer, [&](Event event) -> bool {
     if (event == Event::Custom) {
-      // Custom event to trigger a screen refresh
       return true;
     } else if (event == Event::Character('q')) {
       Stop();
       return true;
-    } else if (_ActiveView && _ActiveView->OnEvent(event)) {
-      _Screen.PostEvent(Event::Custom);
+    } else if (event == Event::Tab) {
+      if (_TabSelector.has_value()) {
+        _TabSelector.reset();
+      } else {
+        _TabSelector = std::make_unique<TabSelector>(
+            [this](std::shared_ptr<TabChoice> choice) {
+              if (choice->GetName() != _ActiveView->GetTabName()) {
+                _ActiveView = choice->CreateView(_Tick, [this] { this->ScheduleRefresh(); });
+              }
+              _TabSelector.reset();
+            },
+            [this] { _TabSelector.reset(); }, _ActiveView->GetTabName());
+      }
+      return true;
+    } else if (_TabSelector.has_value() && (*_TabSelector)->OnEvent(event)) {
+      return true;
+    } else if (_ActiveView->OnEvent(event)) {
       return true;
     } else {
       return false;
@@ -69,37 +77,24 @@ void OmniMon::Run() {
   });
 
   // Default view
-  _ActiveView = std::make_shared<ProcessTree>(_Tick);
   _FtxuiLoop = std::make_unique<::ftxui::Loop>(&_Screen, component);
-
-  // Run twice to ensure the screen is properly initialized and rendered before entering the main loop
-  _FtxuiLoop->RunOnce();
-  _ActiveView->OnTerminalSizeChange(); // Trigger initial size update
   _Screen.PostEvent(::ftxui::Event::Custom);
   _FtxuiLoop->RunOnce();
-
   _Loop.Run();
-
-  // Cleanup
-  _FtxuiLoop.reset();
 }
 
 void OmniMon::Stop() { _Loop.Stop(); }
 
-void OmniMon::Update() {
+void OmniMon::ScheduleRefresh() { _DeferredRender.Notify(1); }
+
+void OmniMon::TimerUpdate() {
   _Tick->Update(_Tick->GetValue() + 1);
-  if (_FtxuiLoop) {
-    _Screen.PostEvent(::ftxui::Event::Custom);
-    _FtxuiLoop->RunOnce();
-  }
+  Refresh();
 }
 
-void OmniMon::SelectTab(std::shared_ptr<TabChoice> choice) {
-  // TODO: implement tab switching
+void OmniMon::Refresh() {
+  _Screen.PostEvent(::ftxui::Event::Custom);
+  _FtxuiLoop->RunOnce();
 }
-
-void OmniMon::ShowTabSelector() { _TabSelectorShown = true; }
-
-void OmniMon::CloseTabSelector() { _TabSelectorShown = false; }
 
 } // namespace frontend::ftxui

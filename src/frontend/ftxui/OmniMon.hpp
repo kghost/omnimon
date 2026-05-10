@@ -6,16 +6,17 @@
 #include <ftxui/component/loop.hpp>
 #include <ftxui/component/screen_interactive.hpp>
 #include <memory>
+#include <optional>
 
 #include "../../backend/metrics/SimplePublisher.hpp"
 #include "Events.hpp"
 #include "FtxuiView.hpp"
 #include "Options.hpp"
+#include "TabSelector.hpp"
 
 namespace frontend::ftxui {
 
 class OmniMon;
-class TabChoice;
 
 class Timer : public EventTimer {
 public:
@@ -59,30 +60,35 @@ private:
   OmniMon& _OmniMon;
 };
 
-class OmniMon {
+class DeferredRender : public EventNotification {
 public:
-  static OmniMon& GetInstance();
+  explicit DeferredRender(EventLoop& loop, OmniMon& mon) : EventNotification(loop), _OmniMon(mon) {}
+  void OnNotification(uint64_t amount) override;
 
 private:
+  OmniMon& _OmniMon;
+};
+
+class OmniMon {
+public:
   explicit OmniMon();
   ~OmniMon() = default;
 
-public:
   void HandleWinChangeSignal();
   void OnStdInRead();
 
-  void Update();
+  void ScheduleRefresh();
+  void TimerUpdate();
+  void Refresh();
+
   void Run();
   void Stop();
-
-  void SelectTab(std::shared_ptr<TabChoice> choice);
-  void ShowTabSelector();
-  void CloseTabSelector();
 
 private:
   EventLoop _Loop;
   SigInt _SigInt;
   SigWinChange _SigWinChange;
+  DeferredRender _DeferredRender;
   IO _StdIO;
 
   std::shared_ptr<backend::metrics::SimplePublisher<int>> _Tick;
@@ -90,8 +96,8 @@ private:
 
   ::ftxui::App _Screen;
   std::unique_ptr<::ftxui::Loop> _FtxuiLoop;
-  std::shared_ptr<FtxuiView> _ActiveView;
-  bool _TabSelectorShown = false;
+  std::shared_ptr<FtxuiTabView> _ActiveView;
+  std::optional<std::unique_ptr<TabSelector>> _TabSelector;
 };
 
 } // namespace frontend::ftxui

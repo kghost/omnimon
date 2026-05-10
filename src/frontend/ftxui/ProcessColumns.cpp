@@ -39,7 +39,7 @@ std::string ColumnPid::GetHeaderText() const { return "PID"; }
 void ColumnPid::RegisterRow(ProcessTree::Row& row) const {}
 
 std::string ColumnPid::GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const {
-  return std::format("{}", row.Process->GetPid());
+  return std::format("{}", row.ProcessPtr->GetPid());
 }
 
 void ColumnPid::Decorate(::ftxui::TableSelection selection) const {
@@ -54,7 +54,7 @@ void ColumnPid::Decorate(::ftxui::TableSelection selection) const {
 std::string ColumnState::GetHeaderText() const { return "S"; }
 
 void ColumnState::RegisterRow(ProcessTree::Row& row) const {
-  row.StateUpdater = backend::metrics::MakeSubscriber(row.Process->GetState(), [&row](auto metric) {
+  row.StateUpdater = backend::metrics::MakeSubscriber(row.ProcessPtr->GetState(), [&row](auto metric) {
     row.StateDisplay = std::format("{:c}", static_cast<char>(metric->GetValue()));
   });
 }
@@ -76,7 +76,7 @@ std::string ColumnUser::GetHeaderText() const { return "User"; }
 void ColumnUser::RegisterRow(ProcessTree::Row& row) const {}
 
 std::string ColumnUser::GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const {
-  return row.Process->GetUser();
+  return row.ProcessPtr->GetUser();
 }
 
 void ColumnUser::Decorate(::ftxui::TableSelection selection) const {
@@ -90,7 +90,7 @@ void ColumnUser::Decorate(::ftxui::TableSelection selection) const {
 std::string ColumnCpu::GetHeaderText() const { return "%CPU"; }
 
 void ColumnCpu::RegisterRow(ProcessTree::Row& row) const {
-  auto process = row.Process;
+  auto process = row.ProcessPtr;
   row.CpuUpdater = backend::metrics::MakeSubscriber(
       std::make_shared<backend::metrics::Ratio>(
           std::make_shared<backend::metrics::CounterSlice>(
@@ -115,7 +115,7 @@ void ColumnCpu::Decorate(::ftxui::TableSelection selection) const {
 std::string ColumnMem::GetHeaderText() const { return "%MEM"; }
 
 void ColumnMem::RegisterRow(ProcessTree::Row& row) const {
-  auto process = row.Process;
+  auto process = row.ProcessPtr;
   row.MemUpdater = backend::metrics::MakeSubscriber(
       std::make_shared<backend::metrics::Ratio>(process->GetMem(),
                                                 backend::system::SysInfo::GetInstance()->GetTotalMem()),
@@ -137,7 +137,7 @@ void ColumnMem::Decorate(::ftxui::TableSelection selection) const {
 std::string ColumnTime::GetHeaderText() const { return "Time+"; }
 
 void ColumnTime::RegisterRow(ProcessTree::Row& row) const {
-  auto process = row.Process;
+  auto process = row.ProcessPtr;
   row.TimeUpdater = backend::metrics::MakeSubscriber(
       std::make_shared<backend::metrics::Plus>(process->GetUserTime(), process->GetSystemTime()), [&row](auto metric) {
         auto text = std::format("{:%H:%M:%S}",
@@ -161,7 +161,7 @@ void ColumnTime::Decorate(::ftxui::TableSelection selection) const {
 std::string ColumnDiskRead::GetHeaderText() const { return "DiskR"; }
 
 void ColumnDiskRead::RegisterRow(ProcessTree::Row& row) const {
-  auto process = row.Process;
+  auto process = row.ProcessPtr;
   row.DiskReadUpdater = backend::metrics::MakeSubscriber(
       std::make_shared<backend::metrics::CounterSlice>(process->GetDiskReadBytes(),
                                                        Config::GetInstance().RefreshInterval),
@@ -183,7 +183,7 @@ void ColumnDiskRead::Decorate(::ftxui::TableSelection selection) const {
 std::string ColumnDiskWrite::GetHeaderText() const { return "DiskW"; }
 
 void ColumnDiskWrite::RegisterRow(ProcessTree::Row& row) const {
-  auto process = row.Process;
+  auto process = row.ProcessPtr;
   row.DiskWriteUpdater = backend::metrics::MakeSubscriber(
       std::make_shared<backend::metrics::CounterSlice>(process->GetDiskWriteBytes(),
                                                        Config::GetInstance().RefreshInterval),
@@ -205,7 +205,7 @@ void ColumnDiskWrite::Decorate(::ftxui::TableSelection selection) const {
 std::string ColumnDiskAccumulated::GetHeaderText() const { return "Disk+"; }
 
 void ColumnDiskAccumulated::RegisterRow(ProcessTree::Row& row) const {
-  auto process = row.Process;
+  auto process = row.ProcessPtr;
   row.DiskAccumulatedUpdater = backend::metrics::MakeSubscriber(
       std::make_shared<backend::metrics::Plus>(process->GetDiskReadBytes(), process->GetDiskWriteBytes()),
       [&row](auto metric) { row.DiskAccumulatedDisplay = utils::DiskSizeToString(metric->GetValue(), 5); });
@@ -226,7 +226,7 @@ void ColumnDiskAccumulated::Decorate(::ftxui::TableSelection selection) const {
 std::string ColumnIO::GetHeaderText() const { return "I/O"; }
 
 void ColumnIO::RegisterRow(ProcessTree::Row& row) const {
-  auto process = row.Process;
+  auto process = row.ProcessPtr;
   row.IOUpdater = backend::metrics::MakeSubscriber(
       std::make_shared<backend::metrics::CounterSlice>(
           std::make_shared<backend::metrics::Plus>(process->GetReadBytes(), process->GetWriteBytes()),
@@ -249,7 +249,7 @@ void ColumnIO::Decorate(::ftxui::TableSelection selection) const {
 std::string ColumnIOAccumulated::GetHeaderText() const { return "I/O+"; }
 
 void ColumnIOAccumulated::RegisterRow(ProcessTree::Row& row) const {
-  auto process = row.Process;
+  auto process = row.ProcessPtr;
   row.IOAccumulatedUpdater = backend::metrics::MakeSubscriber(
       std::make_shared<backend::metrics::Plus>(process->GetReadBytes(), process->GetWriteBytes()),
       [&row](auto metric) { row.IOAccumulatedDisplay = utils::DiskSizeToString(metric->GetValue(), 5); });
@@ -272,7 +272,7 @@ std::string ColumnStart::GetHeaderText() const { return "Start"; }
 void ColumnStart::RegisterRow(ProcessTree::Row& row) const {}
 
 std::string ColumnStart::GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const {
-  auto sys = utils::FromSteadyClock(row.Process->GetStartTime());
+  auto sys = utils::FromSteadyClock(row.ProcessPtr->GetStartTime());
   auto diff = std::chrono::system_clock::now() - sys;
   auto local = std::chrono::current_zone()->to_local(sys);
 
@@ -298,7 +298,7 @@ std::string ColumnCommand::GetHeaderText() const { return "Command"; }
 void ColumnCommand::RegisterRow(ProcessTree::Row& row) const {}
 
 std::string ColumnCommand::GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const {
-  return TreeString(row.Process) + FormatCommand(row.Process->GetCommandLine());
+  return TreeString(row.ProcessPtr) + FormatCommand(row.ProcessPtr->GetCommandLine());
 }
 
 void ColumnCommand::Decorate(::ftxui::TableSelection selection) const {}
