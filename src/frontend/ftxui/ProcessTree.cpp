@@ -42,7 +42,8 @@ void ProcessTree::Update() {
     std::shared_ptr<backend::process::Process> selectedProcess;
     if (_CursorRow != _Rows.end()) {
       selectedProcess = _ProcessListing.GetValidAncestor((*_CursorRow)->MetricsPtr->GetProcess());
-      ps = _ProcessListing.GetAround(selectedProcess, std::distance(_Rows.begin(), _CursorRow), size);
+      auto cursorPosition = std::min(size - 1, std::distance(_Rows.begin(), _CursorRow));
+      ps = _ProcessListing.GetAround(selectedProcess, cursorPosition, size);
     } else {
       ps = _ProcessListing.GetTopK(size);
       if (!ps.empty()) {

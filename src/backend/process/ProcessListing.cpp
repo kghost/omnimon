@@ -99,11 +99,9 @@ std::vector<std::shared_ptr<Process>> ProcessListing::GetTopK(ssize_t k) {
 std::vector<std::shared_ptr<Process>> ProcessListing::GetAround(std::shared_ptr<Process> process, ssize_t index,
                                                                 ssize_t max) {
   if (_ProcessCache.size() <= static_cast<size_t>(max)) {
-    auto range = _ProcessCache | std::views::values;
-    std::vector<std::shared_ptr<Process>> result(range.begin(), range.end());
+    std::vector<std::shared_ptr<Process>> result = _ProcessCache | std::views::values | std::ranges::to<std::vector>();
     std::ranges::sort(result, ProcessOrderTree());
-    auto it = std::lower_bound(result.begin(), result.end(), process, ProcessOrderTree());
-    assert(it != result.end());
+    assert(std::lower_bound(result.begin(), result.end(), process, ProcessOrderTree()) != result.end());
     return result;
   } else {
     ssize_t countBefore =

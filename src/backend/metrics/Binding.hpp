@@ -33,8 +33,8 @@ public:
   virtual void OnUpdate() = 0;
 };
 
-template <typename PublisherT, typename Callback>
-  requires std::derived_from<PublisherT, Publisher> && std::invocable<Callback, std::shared_ptr<PublisherT>>
+template <typename PublisherT, typename ValueType, typename Callback>
+  requires std::derived_from<PublisherT, Publisher> && std::invocable<Callback, ValueType>
 class SubscriberLambda : public SubscriberBase {
 public:
   explicit SubscriberLambda(std::shared_ptr<PublisherT> publisher, Callback&& callback)
@@ -44,7 +44,7 @@ public:
   }
   ~SubscriberLambda() override { _Publisher->RemoveSubscribe(*this); }
 
-  void OnUpdate() override { _Callback(_Publisher); }
+  void OnUpdate() override { _Callback(_Publisher->GetValue()); }
 
 private:
   const std::shared_ptr<PublisherT> _Publisher;
@@ -52,9 +52,9 @@ private:
 };
 
 template <typename PublisherT, typename Callback>
-  requires std::derived_from<PublisherT, Publisher> && std::invocable<Callback, std::shared_ptr<PublisherT>>
 std::shared_ptr<SubscriberBase> MakeSubscriber(std::shared_ptr<PublisherT> publisher, Callback&& callback) {
-  return std::make_shared<SubscriberLambda<PublisherT, Callback>>(publisher, std::forward<Callback>(callback));
+  return std::make_shared<SubscriberLambda<PublisherT, decltype(publisher->GetValue()), Callback>>(
+      publisher, std::forward<Callback>(callback));
 }
 
 } // namespace backend::metrics

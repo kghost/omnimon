@@ -5,7 +5,7 @@
 
 #include "../../utils/Error.hpp"
 
-namespace frontend::ftxui {
+namespace backend::events {
 
 using SigNumType = int;
 
@@ -123,4 +123,4 @@ private:
   bool _Stopped = false;
 };
 
-} // namespace frontend::ftxui
+} // namespace backend::events

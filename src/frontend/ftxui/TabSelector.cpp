@@ -4,6 +4,7 @@
 #include <ranges>
 #include <vector>
 
+#include "CGroupTree.hpp"
 #include "PlaceholderTab.hpp"
 #include "ProcessTree.hpp"
 
@@ -13,9 +14,21 @@ class ProcessTreeTabChoice : public TabChoice {
 public:
   std::string GetName() const override { return kProcessTreeTabName; }
 
-  std::shared_ptr<FtxuiTabView> CreateView(std::shared_ptr<backend::metrics::SimplePublisher<int>> tick,
+  std::shared_ptr<FtxuiTabView> CreateView(backend::events::EventLoop& loop,
+                                           std::shared_ptr<backend::metrics::SimplePublisher<int>> tick,
                                            std::function<void()> refresh) const override {
     return std::make_shared<ProcessTree>(tick, refresh);
+  }
+};
+
+class CGroupTabChoice : public TabChoice {
+public:
+  std::string GetName() const override { return kCGroupV2TabName; }
+
+  std::shared_ptr<FtxuiTabView> CreateView(backend::events::EventLoop& loop,
+                                           std::shared_ptr<backend::metrics::SimplePublisher<int>> tick,
+                                           std::function<void()> refresh) const override {
+    return std::make_shared<CGroupTree>(loop, tick, refresh);
   }
 };
 
@@ -23,7 +36,8 @@ class PlaceholderTabChoice : public TabChoice {
 public:
   std::string GetName() const override { return kPlaceholderTabName; }
 
-  std::shared_ptr<FtxuiTabView> CreateView(std::shared_ptr<backend::metrics::SimplePublisher<int>> tick,
+  std::shared_ptr<FtxuiTabView> CreateView(backend::events::EventLoop& loop,
+                                           std::shared_ptr<backend::metrics::SimplePublisher<int>> tick,
                                            std::function<void()> refresh) const override {
     return std::make_shared<PlaceholderTab>();
   }
@@ -33,6 +47,7 @@ TabSelector::TabSelector(TabSelector::OnTabSelected onTabSelected, TabSelector::
                          const std::string& currentTabName)
     : _OnTabSelected(std::move(onTabSelected)), _OnTabSelectorClosed(std::move(onTabSelectorClosed)) {
   _Tabs.push_back(GetDefaultTab());
+  _Tabs.push_back(std::make_shared<CGroupTabChoice>());
   _Tabs.push_back(std::make_shared<PlaceholderTabChoice>());
 
   _Cursor = std::find_if(_Tabs.begin(), _Tabs.end(),

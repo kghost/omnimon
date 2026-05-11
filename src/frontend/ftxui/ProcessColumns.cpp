@@ -42,10 +42,7 @@ std::string ColumnPid::GetDataText(bool isRowSelected, bool isColumnSelected, Pr
   return std::format("{}", row.MetricsPtr->GetProcess()->GetPid());
 }
 
-void ColumnPid::Decorate(::ftxui::TableSelection selection) const {
-  selection.DecorateCells(::ftxui::align_right);
-  selection.DecorateCells(::ftxui::size(::ftxui::WidthOrHeight::WIDTH, ::ftxui::Constraint::GREATER_THAN, 3));
-}
+void ColumnPid::Decorate(::ftxui::TableSelection selection) const { selection.DecorateCells(::ftxui::align_right); }
 
 // ============================================================================
 // ColumnState
@@ -54,8 +51,8 @@ void ColumnPid::Decorate(::ftxui::TableSelection selection) const {
 std::string ColumnState::GetHeaderText() const { return "S"; }
 
 void ColumnState::RegisterRow(ProcessTree::Row& row) const {
-  row.StateUpdater = backend::metrics::MakeSubscriber(row.MetricsPtr->GetProcess()->GetState(), [&row](auto metric) {
-    row.StateDisplay = std::format("{:c}", static_cast<char>(metric->GetValue()));
+  row.StateUpdater = backend::metrics::MakeSubscriber(row.MetricsPtr->GetProcess()->GetState(), [&row](auto state) {
+    row.StateDisplay = std::format("{:c}", static_cast<char>(state));
   });
 }
 
@@ -63,9 +60,7 @@ std::string ColumnState::GetDataText(bool isRowSelected, bool isColumnSelected, 
   return row.StateDisplay;
 }
 
-void ColumnState::Decorate(::ftxui::TableSelection selection) const {
-  selection.DecorateCells(::ftxui::size(::ftxui::WidthOrHeight::WIDTH, ::ftxui::Constraint::EQUAL, 1));
-}
+void ColumnState::Decorate(::ftxui::TableSelection selection) const {}
 
 // ============================================================================
 // ColumnUser
@@ -79,9 +74,7 @@ std::string ColumnUser::GetDataText(bool isRowSelected, bool isColumnSelected, P
   return row.MetricsPtr->GetProcess()->GetUser();
 }
 
-void ColumnUser::Decorate(::ftxui::TableSelection selection) const {
-  selection.DecorateCells(::ftxui::size(::ftxui::WidthOrHeight::WIDTH, ::ftxui::Constraint::GREATER_THAN, 5));
-}
+void ColumnUser::Decorate(::ftxui::TableSelection selection) const {}
 
 // ============================================================================
 // ColumnCpu
@@ -97,16 +90,14 @@ void ColumnCpu::RegisterRow(ProcessTree::Row& row) const {
               std::make_shared<backend::metrics::Plus>(process->GetUserTime(), process->GetSystemTime()),
               Config::GetInstance().RefreshInterval),
           backend::system::SysInfo::GetInstance()->GetSystemJiffies()),
-      [&row](auto metric) { row.CpuDisplay = std::format("{:.1f}", metric->GetValue() / 100.0f); });
+      [&row](auto cpu) { row.CpuDisplay = std::format("{:.1f}", cpu / 100.0f); });
 }
 
 std::string ColumnCpu::GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const {
   return row.CpuDisplay;
 }
 
-void ColumnCpu::Decorate(::ftxui::TableSelection selection) const {
-  selection.DecorateCells(::ftxui::size(::ftxui::WidthOrHeight::WIDTH, ::ftxui::Constraint::EQUAL, 4));
-}
+void ColumnCpu::Decorate(::ftxui::TableSelection selection) const { selection.DecorateCells(::ftxui::align_right); }
 
 // ============================================================================
 // ColumnMem
@@ -118,16 +109,14 @@ void ColumnMem::RegisterRow(ProcessTree::Row& row) const {
   row.MemUpdater = backend::metrics::MakeSubscriber(
       std::make_shared<backend::metrics::Ratio>(row.MetricsPtr->GetProcess()->GetMem(),
                                                 backend::system::SysInfo::GetInstance()->GetTotalMem()),
-      [&row](auto metric) { row.MemDisplay = std::format("{:.1f}", metric->GetValue() / 100.0f); });
+      [&row](auto mem) { row.MemDisplay = std::format("{:.1f}", mem / 100.0f); });
 }
 
 std::string ColumnMem::GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const {
   return row.MemDisplay;
 }
 
-void ColumnMem::Decorate(::ftxui::TableSelection selection) const {
-  selection.DecorateCells(::ftxui::size(::ftxui::WidthOrHeight::WIDTH, ::ftxui::Constraint::EQUAL, 4));
-}
+void ColumnMem::Decorate(::ftxui::TableSelection selection) const { selection.DecorateCells(::ftxui::align_right); }
 
 // ============================================================================
 // ColumnTime
@@ -138,9 +127,8 @@ std::string ColumnTime::GetHeaderText() const { return "Time+"; }
 void ColumnTime::RegisterRow(ProcessTree::Row& row) const {
   auto process = row.MetricsPtr->GetProcess();
   row.TimeUpdater = backend::metrics::MakeSubscriber(
-      std::make_shared<backend::metrics::Plus>(process->GetUserTime(), process->GetSystemTime()), [&row](auto metric) {
-        auto text = std::format("{:%H:%M:%S}",
-                                std::chrono::floor<std::chrono::seconds>(utils::JiffyToDuration(metric->GetValue())));
+      std::make_shared<backend::metrics::Plus>(process->GetUserTime(), process->GetSystemTime()), [&row](auto time) {
+        auto text = std::format("{:%H:%M:%S}", std::chrono::floor<std::chrono::seconds>(utils::JiffyToDuration(time)));
         row.TimeDisplay = text;
       });
 }
@@ -149,9 +137,7 @@ std::string ColumnTime::GetDataText(bool isRowSelected, bool isColumnSelected, P
   return row.TimeDisplay;
 }
 
-void ColumnTime::Decorate(::ftxui::TableSelection selection) const {
-  selection.DecorateCells(::ftxui::size(::ftxui::WidthOrHeight::WIDTH, ::ftxui::Constraint::EQUAL, 8));
-}
+void ColumnTime::Decorate(::ftxui::TableSelection selection) const {}
 
 // ============================================================================
 // ColumnDiskRead
@@ -160,10 +146,10 @@ void ColumnTime::Decorate(::ftxui::TableSelection selection) const {
 std::string ColumnDiskRead::GetHeaderText() const { return "DiskR"; }
 
 void ColumnDiskRead::RegisterRow(ProcessTree::Row& row) const {
-  row.DiskReadUpdater = backend::metrics::MakeSubscriber(
-      std::make_shared<backend::metrics::CounterSlice>(row.MetricsPtr->GetDiskReadBytes(),
-                                                       Config::GetInstance().RefreshInterval),
-      [&row](auto metric) { row.DiskReadDisplay = utils::DiskSizeToString(metric->GetValue(), 5); });
+  row.DiskReadUpdater =
+      backend::metrics::MakeSubscriber(std::make_shared<backend::metrics::CounterSlice>(
+                                           row.MetricsPtr->GetDiskReadBytes(), Config::GetInstance().RefreshInterval),
+                                       [&row](auto metric) { row.DiskReadDisplay = utils::DiskSizeToString(metric); });
 }
 
 std::string ColumnDiskRead::GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const {
@@ -171,7 +157,7 @@ std::string ColumnDiskRead::GetDataText(bool isRowSelected, bool isColumnSelecte
 }
 
 void ColumnDiskRead::Decorate(::ftxui::TableSelection selection) const {
-  selection.DecorateCells(::ftxui::size(::ftxui::WidthOrHeight::WIDTH, ::ftxui::Constraint::EQUAL, 5));
+  selection.DecorateCells(::ftxui::align_right);
 }
 
 // ============================================================================
@@ -181,10 +167,10 @@ void ColumnDiskRead::Decorate(::ftxui::TableSelection selection) const {
 std::string ColumnDiskWrite::GetHeaderText() const { return "DiskW"; }
 
 void ColumnDiskWrite::RegisterRow(ProcessTree::Row& row) const {
-  row.DiskWriteUpdater = backend::metrics::MakeSubscriber(
-      std::make_shared<backend::metrics::CounterSlice>(row.MetricsPtr->GetDiskWriteBytes(),
-                                                       Config::GetInstance().RefreshInterval),
-      [&row](auto metric) { row.DiskWriteDisplay = utils::DiskSizeToString(metric->GetValue(), 5); });
+  row.DiskWriteUpdater =
+      backend::metrics::MakeSubscriber(std::make_shared<backend::metrics::CounterSlice>(
+                                           row.MetricsPtr->GetDiskWriteBytes(), Config::GetInstance().RefreshInterval),
+                                       [&row](auto metric) { row.DiskWriteDisplay = utils::DiskSizeToString(metric); });
 }
 
 std::string ColumnDiskWrite::GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const {
@@ -192,7 +178,7 @@ std::string ColumnDiskWrite::GetDataText(bool isRowSelected, bool isColumnSelect
 }
 
 void ColumnDiskWrite::Decorate(::ftxui::TableSelection selection) const {
-  selection.DecorateCells(::ftxui::size(::ftxui::WidthOrHeight::WIDTH, ::ftxui::Constraint::EQUAL, 5));
+  selection.DecorateCells(::ftxui::align_right);
 }
 
 // ============================================================================
@@ -205,7 +191,7 @@ void ColumnDiskAccumulated::RegisterRow(ProcessTree::Row& row) const {
   auto process = row.MetricsPtr;
   row.DiskAccumulatedUpdater = backend::metrics::MakeSubscriber(
       std::make_shared<backend::metrics::Plus>(process->GetDiskReadBytes(), process->GetDiskWriteBytes()),
-      [&row](auto metric) { row.DiskAccumulatedDisplay = utils::DiskSizeToString(metric->GetValue(), 5); });
+      [&row](auto metric) { row.DiskAccumulatedDisplay = utils::DiskSizeToString(metric); });
 }
 
 std::string ColumnDiskAccumulated::GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const {
@@ -213,7 +199,7 @@ std::string ColumnDiskAccumulated::GetDataText(bool isRowSelected, bool isColumn
 }
 
 void ColumnDiskAccumulated::Decorate(::ftxui::TableSelection selection) const {
-  selection.DecorateCells(::ftxui::size(::ftxui::WidthOrHeight::WIDTH, ::ftxui::Constraint::EQUAL, 5));
+  selection.DecorateCells(::ftxui::align_right);
 }
 
 // ============================================================================
@@ -228,16 +214,14 @@ void ColumnIO::RegisterRow(ProcessTree::Row& row) const {
       std::make_shared<backend::metrics::CounterSlice>(
           std::make_shared<backend::metrics::Plus>(process->GetReadBytes(), process->GetWriteBytes()),
           Config::GetInstance().RefreshInterval),
-      [&row](auto metric) { row.IODisplay = utils::DiskSizeToString(metric->GetValue(), 5); });
+      [&row](auto metric) { row.IODisplay = utils::DiskSizeToString(metric); });
 }
 
 std::string ColumnIO::GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const {
   return row.IODisplay;
 }
 
-void ColumnIO::Decorate(::ftxui::TableSelection selection) const {
-  selection.DecorateCells(::ftxui::size(::ftxui::WidthOrHeight::WIDTH, ::ftxui::Constraint::EQUAL, 5));
-}
+void ColumnIO::Decorate(::ftxui::TableSelection selection) const { selection.DecorateCells(::ftxui::align_right); }
 
 // ============================================================================
 // ColumnIOAccumulated
@@ -249,7 +233,7 @@ void ColumnIOAccumulated::RegisterRow(ProcessTree::Row& row) const {
   auto process = row.MetricsPtr;
   row.IOAccumulatedUpdater = backend::metrics::MakeSubscriber(
       std::make_shared<backend::metrics::Plus>(process->GetReadBytes(), process->GetWriteBytes()),
-      [&row](auto metric) { row.IOAccumulatedDisplay = utils::DiskSizeToString(metric->GetValue(), 5); });
+      [&row](auto metric) { row.IOAccumulatedDisplay = utils::DiskSizeToString(metric); });
 }
 
 std::string ColumnIOAccumulated::GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const {
@@ -257,7 +241,7 @@ std::string ColumnIOAccumulated::GetDataText(bool isRowSelected, bool isColumnSe
 }
 
 void ColumnIOAccumulated::Decorate(::ftxui::TableSelection selection) const {
-  selection.DecorateCells(::ftxui::size(::ftxui::WidthOrHeight::WIDTH, ::ftxui::Constraint::EQUAL, 5));
+  selection.DecorateCells(::ftxui::align_right);
 }
 
 // ============================================================================
@@ -282,9 +266,7 @@ std::string ColumnStart::GetDataText(bool isRowSelected, bool isColumnSelected, 
   }
 }
 
-void ColumnStart::Decorate(::ftxui::TableSelection selection) const {
-  selection.DecorateCells(::ftxui::size(::ftxui::WidthOrHeight::WIDTH, ::ftxui::Constraint::EQUAL, 5));
-}
+void ColumnStart::Decorate(::ftxui::TableSelection selection) const {}
 
 // ============================================================================
 // ColumnCommand

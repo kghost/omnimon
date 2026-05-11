@@ -6,6 +6,6 @@
 
 namespace utils {
 
-std::string DiskSizeToString(uint64_t size, DisplayLength width);
+std::string DiskSizeToString(uint64_t size);
 
 } // namespace utils

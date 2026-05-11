@@ -13,7 +13,7 @@
 #include "../../utils/Clock.hpp"
 #include "../../utils/Error.hpp"
 
-namespace frontend::ftxui {
+namespace backend::events {
 
 // Handle
 EventHandle::EventHandle(EventLoop& loop, int fd, bool nonblocking) : _Loop(loop), _Fd(fd) {
@@ -200,4 +200,4 @@ EventLoop::CloseEvent::CloseEvent(EventLoop& loop) : EventNotification(loop), _L
 
 void EventLoop::CloseEvent::OnNotification(uint64_t amount) {}
 
-} // namespace frontend::ftxui
+} // namespace backend::events

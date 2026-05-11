@@ -4,17 +4,34 @@
 
 namespace utils {
 
-std::string DiskSizeToString(uint64_t size, DisplayLength width) {
-  if (size < 10 * 1000ull /* ~10K */) {
-    return std::format("{:>{}d}B", size, width - 1);
-  } else if (size < 10ull * 1000ull * 1024ull /* ~10M */) {
-    return std::format("{:>{}.0f}K", static_cast<double>(size) / 1024ull, width - 1);
-  } else if (size < 10ull * 1000ull * 1024ull * 1024ull /* ~10G */) {
-    return std::format("{:>{}.0f}M", static_cast<double>(size) / (1024ull * 1024ull), width - 1);
-  } else if (size < 10ull * 1000ull * 1024ull * 1024ull * 1024ull /* ~10T */) {
-    return std::format("{:>{}.0f}G", static_cast<double>(size) / (1024ull * 1024ull * 1024ull), width - 1);
+std::string DiskSizeToString(uint64_t size) {
+  constexpr const uint64_t K = 1024ull;
+  constexpr const uint64_t M = K * 1024ull;
+  constexpr const uint64_t G = M * 1024ull;
+  constexpr const uint64_t T = G * 1024ull;
+  constexpr const uint64_t P = T * 1024ull;
+  constexpr const uint64_t E = P * 1024ull;
+  constexpr const uint64_t Z = E * 1024ull;
+  constexpr const uint64_t Y = Z * 1024ull;
+
+  if (size < 10 * K) {
+    return std::format("{:d}B", size);
+  } else if (size < 10 * M) {
+    return std::format("{:d}K", size / K);
+  } else if (size < 10 * G) {
+    return std::format("{:d}M", size / M);
+  } else if (size < 10 * T) {
+    return std::format("{:d}G", size / G);
+  } else if (size < 10 * P) {
+    return std::format("{:d}T", size / T);
+  } else if (size < 10 * E) {
+    return std::format("{:d}P", size / P);
+  } else if (size < 10 * Z) {
+    return std::format("{:d}E", size / E);
+  } else if (size < 10 * Y) {
+    return std::format("{:d}Z", size / Z);
   } else {
-    return std::format("{:>{}.0f}T", static_cast<double>(size) / (1024ull * 1024ull * 1024ull * 1024ull), width - 1);
+    return std::format("{:d}Y", size / Y);
   }
 }
 

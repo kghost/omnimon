@@ -6,13 +6,6 @@
     "configurations": [
         {
             "type": "lldb-dap",
-            "request": "attach",
-            "name": "(lldp-dap) Attach",
-            "program": "${workspaceFolder}/build/omnimon",
-            "pid": 1439061
-        },
-        {
-            "type": "lldb-dap",
             "request": "launch",
             "name": "(lldp-dap) Launch",
             "program": "${workspaceFolder}/build/omnimon",
@@ -24,6 +17,13 @@
                 "process handle SIGWINCH --stop false --notify false --pass true",
                 "process handle SIGINT --stop false --notify false --pass true"
             ]
+        },
+        {
+            "type": "lldb-dap",
+            "request": "attach",
+            "name": "(lldp-dap) Attach",
+            "program": "${workspaceFolder}/build/omnimon",
+            "pid": 1439061
         },
         {
             "type": "lldb",

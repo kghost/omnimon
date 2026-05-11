@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+#include "../../backend/events/Events.hpp"
 #include "FtxuiView.hpp"
 
 namespace backend::metrics {
@@ -16,6 +17,7 @@ template <typename T> class SimplePublisher;
 namespace frontend::ftxui {
 
 constexpr const char* kProcessTreeTabName = "Process Tree";
+constexpr const char* kCGroupV2TabName = "CGroup v2";
 constexpr const char* kPlaceholderTabName = "Placeholder";
 
 class FtxuiTabView : public FtxuiView {
@@ -28,7 +30,8 @@ class TabChoice {
 public:
   virtual ~TabChoice() = default;
   virtual std::string GetName() const = 0;
-  virtual std::shared_ptr<FtxuiTabView> CreateView(std::shared_ptr<backend::metrics::SimplePublisher<int>> tick,
+  virtual std::shared_ptr<FtxuiTabView> CreateView(backend::events::EventLoop& loop,
+                                                   std::shared_ptr<backend::metrics::SimplePublisher<int>> tick,
                                                    std::function<void()> refresh) const = 0;
 };
 

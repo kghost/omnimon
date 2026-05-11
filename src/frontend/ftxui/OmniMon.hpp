@@ -8,8 +8,8 @@
 #include <memory>
 #include <optional>
 
+#include "../../backend/events/Events.hpp"
 #include "../../backend/metrics/SimplePublisher.hpp"
-#include "Events.hpp"
 #include "FtxuiView.hpp"
 #include "Options.hpp"
 #include "TabSelector.hpp"
@@ -18,10 +18,11 @@ namespace frontend::ftxui {
 
 class OmniMon;
 
-class Timer : public EventTimer {
+class Timer : public backend::events::EventTimer {
 public:
-  Timer(EventLoop& loop, OmniMon& mon)
-      : EventTimer(loop, std::chrono::microseconds(1), Config::GetInstance().RefreshInterval), _OmniMon(mon) {}
+  Timer(backend::events::EventLoop& loop, OmniMon& mon)
+      : backend::events::EventTimer(loop, std::chrono::microseconds(1), Config::GetInstance().RefreshInterval),
+        _OmniMon(mon) {}
 
   void OnTimer() override;
 
@@ -29,29 +30,33 @@ private:
   OmniMon& _OmniMon;
 };
 
-class SigInt : public EventSignal {
+class SigInt : public backend::events::EventSignal {
 public:
-  explicit SigInt(EventLoop& loop) : EventSignal(loop, SIGINT), _Loop(loop) {}
+  explicit SigInt(backend::events::EventLoop& loop) : backend::events::EventSignal(loop, SIGINT), _Loop(loop) {}
 
-  void OnSignal(SigNumType signum) override { _Loop.Stop(); }
+  void OnSignal(backend::events::SigNumType signum) override { _Loop.Stop(); }
 
 private:
-  EventLoop& _Loop;
+  backend::events::EventLoop& _Loop;
 };
 
-class SigWinChange : public EventSignal {
+class SigWinChange : public backend::events::EventSignal {
 public:
-  explicit SigWinChange(EventLoop& loop, OmniMon& mon) : EventSignal(loop, SIGWINCH), _OmniMon(mon) {}
+  explicit SigWinChange(backend::events::EventLoop& loop, OmniMon& mon)
+      : backend::events::EventSignal(loop, SIGWINCH), _OmniMon(mon) {}
 
-  void OnSignal(SigNumType signum) override;
+  void OnSignal(backend::events::SigNumType signum) override;
 
 private:
   OmniMon& _OmniMon;
 };
 
-class IO : public EventHandle {
+class IO : public backend::events::EventHandle {
 public:
-  explicit IO(EventLoop& loop, OmniMon& mon) : EventHandle(loop, STDIN_FILENO, false), _OmniMon(mon) { ScheduleRead(); }
+  explicit IO(backend::events::EventLoop& loop, OmniMon& mon)
+      : backend::events::EventHandle(loop, STDIN_FILENO, false), _OmniMon(mon) {
+    ScheduleRead();
+  }
 
   void OnRead() override;
   void OnWrite() override {}
@@ -60,9 +65,10 @@ private:
   OmniMon& _OmniMon;
 };
 
-class DeferredRender : public EventNotification {
+class DeferredRender : public backend::events::EventNotification {
 public:
-  explicit DeferredRender(EventLoop& loop, OmniMon& mon) : EventNotification(loop), _OmniMon(mon) {}
+  explicit DeferredRender(backend::events::EventLoop& loop, OmniMon& mon)
+      : backend::events::EventNotification(loop), _OmniMon(mon) {}
   void OnNotification(uint64_t amount) override;
 
 private:
@@ -85,7 +91,7 @@ public:
   void Stop();
 
 private:
-  EventLoop _Loop;
+  backend::events::EventLoop _Loop;
   SigInt _SigInt;
   SigWinChange _SigWinChange;
   DeferredRender _DeferredRender;

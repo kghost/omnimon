@@ -6,13 +6,7 @@
 namespace backend::system {
 
 std::shared_ptr<SysInfo> SysInfo::GetInstance() {
-  static std::weak_ptr<SysInfo> weak;
-  if (auto instance = weak.lock()) {
-    return instance;
-  }
-
-  auto instance = std::make_shared<SysInfo>();
-  weak = instance;
+  static std::shared_ptr<SysInfo> instance(std::make_shared<SysInfo>());
   return instance;
 }
 

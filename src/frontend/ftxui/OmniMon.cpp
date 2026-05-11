@@ -9,7 +9,7 @@ namespace frontend::ftxui {
 
 void Timer::OnTimer() { _OmniMon.TimerUpdate(); }
 
-void SigWinChange::OnSignal(SigNumType signum) { _OmniMon.HandleWinChangeSignal(); }
+void SigWinChange::OnSignal(backend::events::SigNumType signum) { _OmniMon.HandleWinChangeSignal(); }
 
 void IO::OnRead() {
   _OmniMon.OnStdInRead();
@@ -22,7 +22,7 @@ OmniMon::OmniMon()
     : _Loop(), _SigInt(_Loop), _SigWinChange(_Loop, *this), _DeferredRender(_Loop, *this), _StdIO(_Loop, *this),
       _Tick(std::make_shared<backend::metrics::SimplePublisher<int>>()), _Timer(_Loop, *this),
       _Screen(::ftxui::App::FullscreenAlternateScreen()),
-      _ActiveView(TabSelector::GetDefaultTab()->CreateView(_Tick, [this] { this->ScheduleRefresh(); })) {
+      _ActiveView(TabSelector::GetDefaultTab()->CreateView(_Loop, _Tick, [this] { this->ScheduleRefresh(); })) {
   _Screen.TrackMouse(false); // Disables mouse tracking
 }
 
@@ -60,7 +60,7 @@ void OmniMon::Run() {
         _TabSelector = std::make_unique<TabSelector>(
             [this](std::shared_ptr<TabChoice> choice) {
               if (choice->GetName() != _ActiveView->GetTabName()) {
-                _ActiveView = choice->CreateView(_Tick, [this] { this->ScheduleRefresh(); });
+                _ActiveView = choice->CreateView(_Loop, _Tick, [this] { this->ScheduleRefresh(); });
               }
               _TabSelector.reset();
             },
