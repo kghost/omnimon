@@ -1,6 +1,10 @@
 #include "ProcessListing.hpp"
 
+#include <algorithm>
+#include <cassert>
+#include <functional>
 #include <ranges>
+#include <span>
 
 #include "Process.hpp"
 
@@ -8,7 +12,20 @@ namespace backend::process {
 
 const std::filesystem::path ProcessListing::_ProcPath{"/proc"};
 
-void ProcessListing::DoIterate() {
+class ProcessOrderTree {
+public:
+  bool operator()(const std::shared_ptr<Process>& a, const std::shared_ptr<Process>& b) const {
+    return std::ranges::lexicographical_compare(Process::GetAncestors(a), Process::GetAncestors(b),
+                                                [](auto& a, auto& b) { return a->GetPid() < b->GetPid(); });
+  }
+};
+
+std::shared_ptr<Process> ProcessListing::GetProcess(PidType pid) const {
+  auto it = _ProcessCache.find(pid);
+  return it != _ProcessCache.end() ? it->second : nullptr;
+}
+
+void ProcessListing::UpdateList() {
   auto SkipNonePidDir = [](const std::filesystem::directory_entry& entry) {
     if (!entry.is_directory()) {
       return true;
@@ -27,10 +44,87 @@ void ProcessListing::DoIterate() {
       continue;
     }
 
-    _Callback(PeekPid(dir), dir);
+    auto pid = std::stoi(dir.path().filename().string());
+    auto& proc = _ProcessCache[pid];
+    if (!proc) {
+      proc = std::make_shared<Process>(dir);
+    }
+  }
+
+  for (auto& [_, proc] : _ProcessCache) {
+    proc->Update();
+  }
+
+  std::erase_if(_ProcessCache, [](auto& proc) { return !proc.second->Exists(); });
+
+  for (auto& [_, proc] : _ProcessCache) {
+    auto parent = GetProcess(proc->GetPPid());
+    proc->SetParent(parent);
+    if (parent) {
+      parent->AddChild(proc);
+    }
   }
 }
 
-PidType ProcessListing::PeekPid(const std::filesystem::path& path) { return std::stoi(path.filename().string()); }
+std::shared_ptr<Process> ProcessListing::MoveCursor(std::shared_ptr<Process> current, ssize_t offset) {
+  if (offset == 0) {
+    return current;
+  } else if (offset > 0) {
+    std::vector<std::shared_ptr<Process>> result(offset + 1);
+    auto [_, end] = std::ranges::partial_sort_copy(_ProcessCache | std::views::values | std::views::filter([&](auto p) {
+                                                     return !ProcessOrderTree()(p, current);
+                                                   }),
+                                                   result, ProcessOrderTree());
+    return end == result.begin() ? current : *--end;
+  } else {
+    std::vector<std::shared_ptr<Process>> result(-offset);
+    auto [_, end] = std::ranges::partial_sort_copy(
+        _ProcessCache | std::views::values | std::views::filter([&](auto p) { return ProcessOrderTree()(p, current); }),
+        result, std::not_fn(ProcessOrderTree()));
+    return end == result.begin() ? current : *--end;
+  }
+}
+
+std::shared_ptr<Process> ProcessListing::GetValidAncestor(std::shared_ptr<Process> process) {
+  auto selection = Process::GetAncestors(process);
+  return *std::find_if(selection.rbegin(), selection.rend(), [](auto p) { return p->Exists(); });
+}
+
+std::vector<std::shared_ptr<Process>> ProcessListing::GetTopK(ssize_t k) {
+  std::vector<std::shared_ptr<Process>> result(k);
+  auto [_, end] = std::ranges::partial_sort_copy(_ProcessCache | std::views::values, result, ProcessOrderTree());
+  return {result.begin(), end};
+}
+
+std::vector<std::shared_ptr<Process>> ProcessListing::GetAround(std::shared_ptr<Process> process, ssize_t index,
+                                                                ssize_t max) {
+  if (_ProcessCache.size() <= static_cast<size_t>(max)) {
+    auto range = _ProcessCache | std::views::values;
+    std::vector<std::shared_ptr<Process>> result(range.begin(), range.end());
+    std::ranges::sort(result, ProcessOrderTree());
+    auto it = std::lower_bound(result.begin(), result.end(), process, ProcessOrderTree());
+    assert(it != result.end());
+    return result;
+  } else {
+    ssize_t countBefore =
+        std::ranges::count_if(_ProcessCache, [&](auto& p) { return ProcessOrderTree()(p.second, process); });
+    ssize_t countAfter = static_cast<ssize_t>(_ProcessCache.size()) - countBefore - 1;
+
+    auto before = std::min(countBefore, std::max(index, max - countAfter - 1));
+    auto after = std::min(countAfter, std::max(max - index - 1, max - countBefore - 1));
+
+    std::vector<std::shared_ptr<Process>> result(before + 1 + after);
+
+    std::ranges::partial_sort_copy(
+        _ProcessCache | std::views::values | std::views::filter([&](auto p) { return ProcessOrderTree()(p, process); }),
+        std::span(result.begin(), result.begin() + before) | std::views::reverse, std::not_fn(ProcessOrderTree()));
+
+    std::ranges::partial_sort_copy(_ProcessCache | std::views::values |
+                                       std::views::filter([&](auto p) { return !ProcessOrderTree()(p, process); }),
+                                   std::span(result.begin() + before, result.end()), ProcessOrderTree());
+
+    return result;
+  }
+}
 
 } // namespace backend::process

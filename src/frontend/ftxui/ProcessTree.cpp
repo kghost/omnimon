@@ -17,8 +17,8 @@ ProcessTree::ProcessTree(std::shared_ptr<backend::metrics::SimplePublisher<int>>
 std::string ProcessTree::GetTabName() const { return kProcessTreeTabName; }
 
 void ProcessTree::MoveCursorAndDraw(ssize_t offset) {
-  auto selectedProcess = _ProcessCollection.MoveCursor((*_CursorRow)->ProcessPtr, offset);
-  auto ps = _ProcessCollection.GetAround(selectedProcess, std::distance(_Rows.begin(), _CursorRow), _TableCapacity);
+  auto selectedProcess = _ProcessListing.MoveCursor((*_CursorRow)->ProcessPtr, offset);
+  auto ps = _ProcessListing.GetAround(selectedProcess, std::distance(_Rows.begin(), _CursorRow), _TableCapacity);
   UpdateData(selectedProcess, ps);
 }
 
@@ -34,15 +34,15 @@ void ProcessTree::OnTableSizeChange(::ftxui::Box box) {
 void ProcessTree::Update() {
   auto size = _TableCapacity;
   if (size > 0) {
-    _ProcessCollection.UpdateList();
+    _ProcessListing.UpdateList();
     auto cursor = _CursorRow;
     std::vector<std::shared_ptr<backend::process::Process>> ps;
     std::shared_ptr<backend::process::Process> selectedProcess;
     if (_CursorRow != _Rows.end()) {
-      selectedProcess = _ProcessCollection.GetValidAncestor((*_CursorRow)->ProcessPtr);
-      ps = _ProcessCollection.GetAround(selectedProcess, std::distance(_Rows.begin(), _CursorRow), size);
+      selectedProcess = _ProcessListing.GetValidAncestor((*_CursorRow)->ProcessPtr);
+      ps = _ProcessListing.GetAround(selectedProcess, std::distance(_Rows.begin(), _CursorRow), size);
     } else {
-      ps = _ProcessCollection.GetTopK(size);
+      ps = _ProcessListing.GetTopK(size);
       if (!ps.empty()) {
         selectedProcess = ps[0];
       }

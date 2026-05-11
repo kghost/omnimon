@@ -7,7 +7,8 @@
 
 #include "../../backend/metrics/Binding.hpp"
 #include "../../backend/metrics/SimplePublisher.hpp"
-#include "ProcessOrder.hpp"
+#include "../../backend/process/Process.hpp"
+#include "../../backend/process/ProcessListing.hpp"
 #include "TabSelector.hpp"
 
 namespace frontend::ftxui {
@@ -61,7 +62,7 @@ private:
 
   static constexpr const ssize_t HeaderHeight = 1; // Number of rows reserved for the header
   ssize_t _TableCapacity = 0;                      // Current height of the table (excluding header)
-  ProcessCollection _ProcessCollection;
+  backend::process::ProcessListing _ProcessListing;
   std::list<std::unique_ptr<Row>> _Rows;                      // Row definitions (e.g., which process to display)
   std::list<std::unique_ptr<Column>> _Columns;                // Column definitions (e.g., width, header text)
   std::list<std::unique_ptr<Row>>::iterator _CursorRow;       // Current position of the cursor in the rows

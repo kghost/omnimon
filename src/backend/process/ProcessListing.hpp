@@ -1,7 +1,6 @@
 #pragma once
 
 #include <filesystem>
-#include <list>
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -12,24 +11,23 @@ namespace backend::process {
 
 class Process;
 
-class ProcessListingCallback {
-public:
-  virtual ~ProcessListingCallback() = default;
-  virtual void operator()(PidType pid, const std::filesystem::path& dir) = 0;
-};
-
 class ProcessListing {
 public:
-  explicit ProcessListing(ProcessListingCallback& callback) : _Callback(callback) {}
+  ProcessListing() = default;
   ~ProcessListing() = default;
 
-  void DoIterate();
+  std::shared_ptr<Process> GetProcess(PidType pid) const;
+  void UpdateList();
+
+  std::shared_ptr<Process> MoveCursor(std::shared_ptr<Process> current, ssize_t offset);
+  std::shared_ptr<Process> GetValidAncestor(std::shared_ptr<Process> process);
+  std::vector<std::shared_ptr<Process>> GetTopK(ssize_t k);
+  std::vector<std::shared_ptr<Process>> GetAround(std::shared_ptr<Process> process, ssize_t index, ssize_t max);
 
 private:
-  static PidType PeekPid(const std::filesystem::path& path);
   static const std::filesystem::path _ProcPath;
 
-  ProcessListingCallback& _Callback;
+  std::unordered_map<PidType, std::shared_ptr<Process>> _ProcessCache;
 };
 
 } // namespace backend::process
