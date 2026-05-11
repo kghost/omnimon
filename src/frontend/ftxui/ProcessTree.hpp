@@ -23,7 +23,7 @@ public:
 
   class Row {
   public:
-    std::shared_ptr<Process> ProcessPtr;
+    std::shared_ptr<backend::process::Process> ProcessPtr;
 
     // Column associated data, stored as strings cached from updaters
     std::string StateDisplay;
@@ -71,7 +71,8 @@ private:
   void OnTableSizeChange(::ftxui::Box box);
   void Update();
   void MoveCursorAndDraw(ssize_t offset);
-  void UpdateData(std::shared_ptr<Process> selectedProcess, std::vector<std::shared_ptr<Process>> ps);
+  void UpdateData(std::shared_ptr<backend::process::Process> selectedProcess,
+                  std::vector<std::shared_ptr<backend::process::Process>> ps);
 
   std::list<std::unique_ptr<Column>> CreateDefaultColumns();
 };

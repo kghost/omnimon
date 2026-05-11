@@ -10,7 +10,6 @@
 #include "../../utils/Clock.hpp"
 #include "../../utils/Formatter.hpp"
 #include "Options.hpp"
-#include "Process.hpp"
 
 namespace frontend::ftxui {
 
@@ -303,26 +302,26 @@ std::string ColumnCommand::GetDataText(bool isRowSelected, bool isColumnSelected
 
 void ColumnCommand::Decorate(::ftxui::TableSelection selection) const {}
 
-std::string ColumnCommand::TreeString(std::shared_ptr<Process> process) {
+std::string ColumnCommand::TreeString(std::shared_ptr<backend::process::Process> process) {
   std::string result;
-  auto list = Process::GetTreePosition(process);
+  auto list = backend::process::Process::GetTreePosition(process);
   for (auto it = list.begin(); it != list.end(); ++it) {
     auto it2 = it;
     if (++it2 != list.end()) {
       switch (*it) {
-      case Process::ChildPosition::NotLast:
+      case backend::process::Process::ChildPosition::NotLast:
         result += "│ ";
         break;
-      case Process::ChildPosition::Last:
+      case backend::process::Process::ChildPosition::Last:
         result += "  ";
         break;
       }
     } else {
       switch (*it) {
-      case Process::ChildPosition::NotLast:
+      case backend::process::Process::ChildPosition::NotLast:
         result += "├─";
         break;
-      case Process::ChildPosition::Last:
+      case backend::process::Process::ChildPosition::Last:
         result += "└─";
         break;
       }

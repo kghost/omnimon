@@ -27,7 +27,6 @@ public:
 
 private:
   static PidType PeekPid(const std::filesystem::path& path);
-  static bool Skip(const std::filesystem::directory_entry& entry);
   static const std::filesystem::path _ProcPath;
 
   ProcessListingCallback& _Callback;

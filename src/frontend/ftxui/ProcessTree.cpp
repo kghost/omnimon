@@ -5,7 +5,6 @@
 #include <ftxui/dom/elements.hpp>
 #include <ftxui/dom/table.hpp>
 
-#include "Process.hpp"
 #include "ProcessColumns.hpp"
 
 namespace frontend::ftxui {
@@ -37,8 +36,8 @@ void ProcessTree::Update() {
   if (size > 0) {
     _ProcessCollection.UpdateList();
     auto cursor = _CursorRow;
-    std::vector<std::shared_ptr<Process>> ps;
-    std::shared_ptr<Process> selectedProcess;
+    std::vector<std::shared_ptr<backend::process::Process>> ps;
+    std::shared_ptr<backend::process::Process> selectedProcess;
     if (_CursorRow != _Rows.end()) {
       selectedProcess = _ProcessCollection.GetValidAncestor((*_CursorRow)->ProcessPtr);
       ps = _ProcessCollection.GetAround(selectedProcess, std::distance(_Rows.begin(), _CursorRow), size);
@@ -53,7 +52,8 @@ void ProcessTree::Update() {
   }
 }
 
-void ProcessTree::UpdateData(std::shared_ptr<Process> selectedProcess, std::vector<std::shared_ptr<Process>> ps) {
+void ProcessTree::UpdateData(std::shared_ptr<backend::process::Process> selectedProcess,
+                             std::vector<std::shared_ptr<backend::process::Process>> ps) {
   assert(std::ranges::contains(ps, selectedProcess));
   std::map<backend::process::PidType, std::reference_wrapper<std::unique_ptr<Row>>> existingProcesses;
   for (auto& row : _Rows) {

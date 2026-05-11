@@ -120,7 +120,7 @@ public:
   void Decorate(::ftxui::TableSelection selection) const override;
 
 private:
-  static std::string TreeString(std::shared_ptr<Process> process);
+  static std::string TreeString(std::shared_ptr<backend::process::Process> process);
   static std::string FormatCommand(const std::string& command);
 };
 

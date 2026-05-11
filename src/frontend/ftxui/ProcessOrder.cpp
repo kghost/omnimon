@@ -6,19 +6,20 @@
 #include <ranges>
 #include <span>
 
-#include "Process.hpp"
+#include "../../backend/process/Process.hpp"
 
 namespace frontend::ftxui {
 
 class ProcessOrderTree {
 public:
-  bool operator()(std::shared_ptr<Process> a, std::shared_ptr<Process> b) const {
-    return std::ranges::lexicographical_compare(Process::GetAncestors(a), Process::GetAncestors(b),
+  bool operator()(std::shared_ptr<backend::process::Process> a, std::shared_ptr<backend::process::Process> b) const {
+    return std::ranges::lexicographical_compare(backend::process::Process::GetAncestors(a),
+                                                backend::process::Process::GetAncestors(b),
                                                 [](auto& a, auto& b) { return a->GetPid() < b->GetPid(); });
   }
 };
 
-std::shared_ptr<Process> ProcessCollection::GetProcess(backend::process::PidType pid) const {
+std::shared_ptr<backend::process::Process> ProcessCollection::GetProcess(backend::process::PidType pid) const {
   auto it = _ProcessCache.find(pid);
   if (it != _ProcessCache.end()) {
     return it->second;
@@ -48,17 +49,18 @@ void ProcessCollection::UpdateList() {
 void ProcessCollection::operator()(backend::process::PidType pid, const std::filesystem::path& dir) {
   auto& v = _ProcessCache[pid];
   if (!v) {
-    v = std::make_shared<Process>(dir);
+    v = std::make_shared<backend::process::Process>(dir);
   }
 }
 
-std::shared_ptr<Process> ProcessCollection::MoveCursor(std::shared_ptr<Process> current, ssize_t offset) {
+std::shared_ptr<backend::process::Process>
+ProcessCollection::MoveCursor(std::shared_ptr<backend::process::Process> current, ssize_t offset) {
   // Move the cursor to the process at the given offset. Return the process at the offset.
   // If the offset is out of bounds, return the first or last process.
   if (offset == 0) {
     return current;
   } else if (offset > 0) {
-    std::vector<std::shared_ptr<Process>> result(offset + 1);
+    std::vector<std::shared_ptr<backend::process::Process>> result(offset + 1);
     // The std::ranges::partial_sort_copy() call below copies first `offset` number of processes that are after current
     // process into the result vector, including current. The processes are sorted in normal order.
     auto [_, end] = std::ranges::partial_sort_copy(_ProcessCache | std::views::values | std::views::filter([&](auto p) {
@@ -67,7 +69,7 @@ std::shared_ptr<Process> ProcessCollection::MoveCursor(std::shared_ptr<Process> 
                                                    result, ProcessOrderTree());
     return end == result.begin() ? current : *--end;
   } else {
-    std::vector<std::shared_ptr<Process>> result(-offset);
+    std::vector<std::shared_ptr<backend::process::Process>> result(-offset);
     auto [_, end] = std::ranges::partial_sort_copy(
         _ProcessCache | std::views::values | std::views::filter([&](auto p) { return ProcessOrderTree()(p, current); }),
         result, std::not_fn(ProcessOrderTree()));
@@ -75,23 +77,24 @@ std::shared_ptr<Process> ProcessCollection::MoveCursor(std::shared_ptr<Process> 
   }
 }
 
-std::shared_ptr<Process> ProcessCollection::GetValidAncestor(std::shared_ptr<Process> process) {
+std::shared_ptr<backend::process::Process>
+ProcessCollection::GetValidAncestor(std::shared_ptr<backend::process::Process> process) {
   // Move cursor to ancestor if the process is exited
-  auto selection = Process::GetAncestors(process);
+  auto selection = backend::process::Process::GetAncestors(process);
   return *std::find_if(selection.rbegin(), selection.rend(), [](auto p) { return p->Exists(); });
 }
 
-std::vector<std::shared_ptr<Process>> ProcessCollection::GetTopK(ssize_t k) {
-  std::vector<std::shared_ptr<Process>> result(k);
+std::vector<std::shared_ptr<backend::process::Process>> ProcessCollection::GetTopK(ssize_t k) {
+  std::vector<std::shared_ptr<backend::process::Process>> result(k);
   auto [_, end] = std::ranges::partial_sort_copy(_ProcessCache | std::views::values, result, ProcessOrderTree());
   return {result.begin(), end};
 }
 
-std::vector<std::shared_ptr<Process>> ProcessCollection::GetAround(std::shared_ptr<Process> process, ssize_t index,
-                                                                   ssize_t max) {
+std::vector<std::shared_ptr<backend::process::Process>>
+ProcessCollection::GetAround(std::shared_ptr<backend::process::Process> process, ssize_t index, ssize_t max) {
   if (_ProcessCache.size() <= max) {
     auto range = _ProcessCache | std::views::values;
-    std::vector<std::shared_ptr<Process>> result(range.begin(), range.end());
+    std::vector<std::shared_ptr<backend::process::Process>> result(range.begin(), range.end());
     std::ranges::sort(result, ProcessOrderTree());
     auto it = std::lower_bound(result.begin(), result.end(), process, ProcessOrderTree());
     assert(it != result.end());
@@ -113,7 +116,7 @@ std::vector<std::shared_ptr<Process>> ProcessCollection::GetAround(std::shared_p
     // The result vector will contain the processes that will be displayed, including the selected process.
     // We need to allocate space for the maximum number of processes that can be displayed,
     // because otherwise the std::ranges::partial_sort_copy() call below will not work.
-    std::vector<std::shared_ptr<Process>> result(before + 1 + after);
+    std::vector<std::shared_ptr<backend::process::Process>> result(before + 1 + after);
 
     // At this point the result vector is full of default-constructed shared_ptr<Process> objects.
     // We now need to fill the result vector with the processes that will be displayed.

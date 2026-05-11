@@ -1,6 +1,9 @@
 #pragma once
 
 #include <filesystem>
+#include <list>
+#include <map>
+#include <memory>
 #include <string>
 
 #include "../metrics/Gauge.hpp"
@@ -13,7 +16,7 @@ public:
   static const std::chrono::steady_clock::time_point EPOCH;
 
   explicit Process(const std::filesystem::path& dir);
-  ~Process() = default;
+  ~Process();
 
   void Update();
 
@@ -38,6 +41,15 @@ public:
   GaugePtr GetDiskReadBytes() { return _DiskReadBytes; }
   GaugePtr GetDiskWriteBytes() { return _DiskWriteBytes; }
   GaugePtr GetDiskCancelledWriteBytes() { return _DiskCancelledWriteBytes; }
+
+  std::shared_ptr<Process> GetParent() const { return _Parent; }
+  void SetParent(std::shared_ptr<Process> parent) { _Parent = parent; }
+  void AddChild(std::shared_ptr<Process> child) { _Children[child->GetPid()] = child; }
+  void RemoveChild(PidType pid) { _Children.erase(pid); }
+  enum class ChildPosition { NotLast, Last };
+  static std::list<ChildPosition> GetTreePosition(std::shared_ptr<Process> me);
+  ChildPosition GetChildPosition(std::shared_ptr<const Process> child) const;
+  static std::list<std::shared_ptr<Process>> GetAncestors(std::shared_ptr<Process> p);
 
 private:
   struct ProcessInfo {
@@ -74,6 +86,9 @@ private:
 
   ProcessInfo _Info;
   std::chrono::steady_clock::time_point _StartTime;
+
+  std::shared_ptr<Process> _Parent;
+  std::map<PidType, std::weak_ptr<Process>> _Children;
 
   // Metrics from stat file
   std::shared_ptr<ProcessGauge> _State;
