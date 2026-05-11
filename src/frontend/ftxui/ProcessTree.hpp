@@ -9,6 +9,7 @@
 #include "../../backend/metrics/SimplePublisher.hpp"
 #include "../../backend/process/Process.hpp"
 #include "../../backend/process/ProcessListing.hpp"
+#include "../../backend/process/ProcessMetrics.hpp"
 #include "TabSelector.hpp"
 
 namespace frontend::ftxui {
@@ -24,7 +25,7 @@ public:
 
   class Row {
   public:
-    std::shared_ptr<backend::process::Process> ProcessPtr;
+    std::shared_ptr<backend::process::ProcessMetrics> MetricsPtr;
 
     // Column associated data, stored as strings cached from updaters
     std::string StateDisplay;

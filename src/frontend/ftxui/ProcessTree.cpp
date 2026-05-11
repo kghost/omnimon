@@ -5,6 +5,7 @@
 #include <ftxui/dom/elements.hpp>
 #include <ftxui/dom/table.hpp>
 
+#include "../../backend/process/ProcessMetrics.hpp"
 #include "ProcessColumns.hpp"
 
 namespace frontend::ftxui {
@@ -17,7 +18,8 @@ ProcessTree::ProcessTree(std::shared_ptr<backend::metrics::SimplePublisher<int>>
 std::string ProcessTree::GetTabName() const { return kProcessTreeTabName; }
 
 void ProcessTree::MoveCursorAndDraw(ssize_t offset) {
-  auto selectedProcess = _ProcessListing.MoveCursor((*_CursorRow)->ProcessPtr, offset);
+  auto currentProcess = (*_CursorRow)->MetricsPtr->GetProcess();
+  auto selectedProcess = _ProcessListing.MoveCursor(currentProcess, offset);
   auto ps = _ProcessListing.GetAround(selectedProcess, std::distance(_Rows.begin(), _CursorRow), _TableCapacity);
   UpdateData(selectedProcess, ps);
 }
@@ -39,7 +41,7 @@ void ProcessTree::Update() {
     std::vector<std::shared_ptr<backend::process::Process>> ps;
     std::shared_ptr<backend::process::Process> selectedProcess;
     if (_CursorRow != _Rows.end()) {
-      selectedProcess = _ProcessListing.GetValidAncestor((*_CursorRow)->ProcessPtr);
+      selectedProcess = _ProcessListing.GetValidAncestor((*_CursorRow)->MetricsPtr->GetProcess());
       ps = _ProcessListing.GetAround(selectedProcess, std::distance(_Rows.begin(), _CursorRow), size);
     } else {
       ps = _ProcessListing.GetTopK(size);
@@ -57,8 +59,9 @@ void ProcessTree::UpdateData(std::shared_ptr<backend::process::Process> selected
   assert(std::ranges::contains(ps, selectedProcess));
   std::map<backend::process::PidType, std::reference_wrapper<std::unique_ptr<Row>>> existingProcesses;
   for (auto& row : _Rows) {
-    if (row->ProcessPtr->Exists()) {
-      existingProcesses.emplace(row->ProcessPtr->GetPid(), row);
+    auto proc = row->MetricsPtr->GetProcess();
+    if (proc->Exists()) {
+      existingProcesses.emplace(proc->GetPid(), row);
     }
   }
 
@@ -69,8 +72,10 @@ void ProcessTree::UpdateData(std::shared_ptr<backend::process::Process> selected
     auto it = existingProcesses.find(process->GetPid());
     if (it != existingProcesses.end()) {
       _Rows.emplace_back(std::move(it->second.get()));
+      _Rows.back()->MetricsPtr->UpdateMetrics();
     } else {
-      _Rows.push_back(std::make_unique<Row>(Row{.ProcessPtr = process}));
+      _Rows.push_back(
+          std::make_unique<Row>(Row{.MetricsPtr = std::make_shared<backend::process::ProcessMetrics>(process)}));
       for (auto& column : _Columns) {
         column->RegisterRow(*_Rows.back());
       }

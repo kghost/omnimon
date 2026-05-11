@@ -52,7 +52,7 @@ void ProcessListing::UpdateList() {
   }
 
   for (auto& [_, proc] : _ProcessCache) {
-    proc->Update();
+    proc->ParseStatFile();
   }
 
   std::erase_if(_ProcessCache, [](auto& proc) { return !proc.second->Exists(); });

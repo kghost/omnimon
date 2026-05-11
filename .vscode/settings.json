@@ -63,5 +63,6 @@
         "cinttypes": "cpp",
         "typeinfo": "cpp",
         "variant": "cpp"
-    }
+    },
+    "cmake.modifyLists.addNewSourceFiles": "no"
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <filesystem>
 #include <list>
 #include <map>
@@ -7,40 +8,34 @@
 #include <string>
 
 #include "../metrics/Gauge.hpp"
+#include "ProcessGauge.hpp"
 #include "Types.hpp"
 
 namespace backend::process {
 
-class Process {
+class Process final : public std::enable_shared_from_this<Process>, public ProcessGaugeOwner {
 public:
   static const std::chrono::steady_clock::time_point EPOCH;
 
   explicit Process(const std::filesystem::path& dir);
   ~Process();
 
-  void Update();
+  void ParseStatFile();
 
-  // Following APIs are only available after Update
+  const std::filesystem::path& GetProcDirPath() const { return _ProcDirPath; }
   bool Exists() const { return _Exists; }
+  void SetExists(bool exists) { _Exists = exists; }
+
   PidType GetPid() const { return _Info.pid; }
   PidType GetPPid() const { return _Info.ppid; }
-  std::string GetCommand() const { return _Info.comm; }
-  std::chrono::steady_clock::time_point GetStartTime() const { return _StartTime; }
-  std::string GetCommandLine() const;
   std::string GetUser() const;
+  std::chrono::steady_clock::time_point GetStartTime() const { return _StartTime; }
 
-  using GaugePtr = std::shared_ptr<backend::metrics::Gauge>;
-  GaugePtr GetState() { return _State; }
-  GaugePtr GetMem() { return _Mem; }
-  GaugePtr GetUserTime() { return _UserTime; }
-  GaugePtr GetSystemTime() { return _SystemTime; }
-  GaugePtr GetReadBytes() { return _ReadBytes; }
-  GaugePtr GetWriteBytes() { return _WriteBytes; }
-  GaugePtr GetReadCalls() { return _ReadCalls; }
-  GaugePtr GetWriteCalls() { return _WriteCalls; }
-  GaugePtr GetDiskReadBytes() { return _DiskReadBytes; }
-  GaugePtr GetDiskWriteBytes() { return _DiskWriteBytes; }
-  GaugePtr GetDiskCancelledWriteBytes() { return _DiskCancelledWriteBytes; }
+  GaugePtr GetState() const { return _State; }
+  GaugePtr GetMem() const { return _Mem; }
+  GaugePtr GetUserTime() const { return _UserTime; }
+  GaugePtr GetSystemTime() const { return _SystemTime; }
+  std::string GetComm() const { return _Info.comm; }
 
   std::shared_ptr<Process> GetParent() const { return _Parent; }
   void SetParent(std::shared_ptr<Process> parent) { _Parent = parent; }
@@ -52,58 +47,28 @@ public:
   static std::list<std::shared_ptr<Process>> GetAncestors(std::shared_ptr<Process> p);
 
 private:
+  std::chrono::steady_clock::time_point GetLastUpdate() const override { return _LastUpdate; }
+
+  const std::filesystem::path _ProcDirPath;
+  bool _Exists = false;
+
   struct ProcessInfo {
     int pid = 0;
     int ppid;
     std::string comm;
     uid_t uid;
   };
-
-  void ParseStatFile();
-  void ParseIoFile();
-
-  class ProcessGauge : public metrics::Gauge {
-  public:
-    explicit ProcessGauge(Process& owner) : _Owner(owner), _Value(0) {}
-
-    void SetValue(metrics::DataType value) {
-      _Value = value;
-      Notify();
-    }
-
-    std::chrono::steady_clock::time_point GetLastUpdate() const override { return _Owner._LastUpdate; }
-    metrics::DataType GetValue() const override { return _Value; }
-
-  private:
-    friend class Process;
-    Process& _Owner;
-    metrics::DataType _Value;
-  };
-
-  const std::filesystem::path _ProcDirPath;
-  std::chrono::steady_clock::time_point _LastUpdate;
-  bool _Exists = false;
-
   ProcessInfo _Info;
   std::chrono::steady_clock::time_point _StartTime;
+  std::chrono::steady_clock::time_point _LastUpdate;
 
-  std::shared_ptr<Process> _Parent;
-  std::map<PidType, std::weak_ptr<Process>> _Children;
-
-  // Metrics from stat file
   std::shared_ptr<ProcessGauge> _State;
   std::shared_ptr<ProcessGauge> _Mem;
   std::shared_ptr<ProcessGauge> _UserTime;
   std::shared_ptr<ProcessGauge> _SystemTime;
 
-  // Metrics from io file
-  std::shared_ptr<ProcessGauge> _ReadBytes;
-  std::shared_ptr<ProcessGauge> _WriteBytes;
-  std::shared_ptr<ProcessGauge> _ReadCalls;
-  std::shared_ptr<ProcessGauge> _WriteCalls;
-  std::shared_ptr<ProcessGauge> _DiskReadBytes;
-  std::shared_ptr<ProcessGauge> _DiskWriteBytes;
-  std::shared_ptr<ProcessGauge> _DiskCancelledWriteBytes;
+  std::shared_ptr<Process> _Parent;
+  std::map<PidType, std::weak_ptr<Process>> _Children;
 };
 
 } // namespace backend::process
