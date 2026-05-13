@@ -41,11 +41,11 @@ void DirectoryWatcher::OnRead() {
     if (reader.IsReading()) {
       more = reader.Continue();
     } else {
-      more = reader.Request(sizeof(struct inotify_event), [this, &reader](std::vector<char> data) {
+      more = reader.Request(sizeof(struct inotify_event), [this](FileReader& reader, std::vector<char> data) {
         // Handle the inotify_event data
         struct inotify_event* event = reinterpret_cast<struct inotify_event*>(data.data());
         if (event->len > 0) {
-          reader.Request(event->len, [this, event](std::vector<char> name) {
+          reader.Request(event->len, [this, event](FileReader& reader, std::vector<char> name) {
             std::string s(name.begin(), name.end());
             s.erase(s.find('\0'));
             OnInotifyEvent(*event, s);

@@ -11,7 +11,8 @@ namespace backend::events {
 
 bool FileReader::IsReading() const { return _State.Request.has_value(); }
 
-FileReader::ReadResult FileReader::Request(ssize_t request, std::function<void(std::vector<char>)> callback) {
+FileReader::ReadResult FileReader::Request(ssize_t request,
+                                           std::function<void(FileReader&, std::vector<char>)> callback) {
   assert(request > 0);
   assert(!IsReading());
   _State.Request = std::make_tuple(request, callback);
@@ -43,7 +44,7 @@ FileReader::ReadResult FileReader::Continue() {
   std::vector<char> result(_State.Buffer.begin(), _State.Buffer.begin() + request);
   _State.Buffer.erase(_State.Buffer.begin(), _State.Buffer.begin() + request);
   _State.Request.reset();
-  callback(result);
+  callback(*this, result);
   return FileReader::ReadResult::Success;
 }
 
