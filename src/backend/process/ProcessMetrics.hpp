@@ -1,12 +1,10 @@
 #pragma once
 
 #include <chrono>
-#include <filesystem>
 #include <memory>
 #include <string>
 
 #include "ProcessGauge.hpp"
-#include "Types.hpp"
 
 namespace backend::process {
 

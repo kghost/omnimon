@@ -26,9 +26,11 @@ protected:
   CGroupManager& _Manager;
   CGroupNode* _Parent; // Parent always exists, except for the root node where it is set to nullptr.
   const std::string _Name;
+  bool _RemovedFromTree = false;
 };
 
 class CGroupNode : public CGroupNodeBase, public events::DirectoryWatchDescriptor {
+  // Extract CGroupNodeBase class because DirectoryWatchDescriptor must be initialized after _Parent and _Name.
 public:
   explicit CGroupNode(CGroupManager& manager);
   explicit CGroupNode(CGroupManager& manager, CGroupNode* parent, std::string name);
@@ -41,11 +43,14 @@ public:
   void OnDirectoryCreateChild(const std::string& name) override;
   void OnDirectoryDeleteChild(const std::string& name) override;
 
+  void TreeDestruct(); // Free the whole tree. Should only be called from the root node.
+
 private:
   void InitializeChildren();
+  void NodeRemovedFromTree();
 
   std::filesystem::file_time_type _CreateTime;
-  std::map<std::string, std::shared_ptr<CGroupNode>> _Children;
+  std::map<const std::string, std::shared_ptr<CGroupNode>> _Children;
 
   std::filesystem::file_time_type ReadCreateTime() const;
 };

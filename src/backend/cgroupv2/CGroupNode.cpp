@@ -1,14 +1,13 @@
 #include "CGroupNode.hpp"
 
 #include <cassert>
-#include <chrono>
-#include <system_error>
 
 #include "CGroupManager.hpp"
 
 namespace backend::cgroupv2 {
 
 std::filesystem::path CGroupNodeBase::GetPath() const {
+  assert(!_RemovedFromTree && "GetPath should not be called after the node is removed from the tree");
   if (_Parent != nullptr) {
     return _Parent->GetPath() / _Name;
   } else {
@@ -25,15 +24,17 @@ CGroupNode::CGroupNode(CGroupManager& manager, CGroupNode* parent, std::string n
   InitializeChildren();
 }
 
-CGroupNode::~CGroupNode() { _Manager.OnNodePreRemove(*this); }
+CGroupNode::~CGroupNode() {
+  assert(_RemovedFromTree && "CGroupNode should be removed from the tree before it is destructed");
+}
 
 void CGroupNode::OnDirectoryCreateChild(const std::string& name) {
-  assert(_Children.find(name) == _Children.end());
+  assert(!_Children.contains(name));
   _Children.emplace(name, std::make_shared<CGroupNode>(_Manager, this, name));
 }
 
 void CGroupNode::OnDirectoryDeleteChild(const std::string& name) {
-  assert(_Children.find(name) != _Children.end());
+  assert(_Children.contains(name));
   _Children.erase(name);
 }
 
@@ -57,6 +58,22 @@ void CGroupNode::InitializeChildren() {
   } catch (const std::filesystem::filesystem_error&) {
     // If the directory cannot be enumerated, leave children empty.
   }
+}
+
+void CGroupNode::NodeRemovedFromTree() {
+  assert(!_RemovedFromTree && "NodeRemovedFromTree should only be called once for each node");
+  assert(_Children.empty() && "CGroup node should have no children when it is removed from the tree");
+  _Manager.OnNodePreRemove(*this);
+  _RemovedFromTree = true;
+}
+
+void CGroupNode::TreeDestruct() {
+  assert(!_RemovedFromTree && "TreeDestruct should only be called when manager destructs the whole tree");
+  for (auto& [name, child] : _Children) {
+    child->TreeDestruct();
+  }
+  _Children.clear();
+  NodeRemovedFromTree();
 }
 
 std::filesystem::file_time_type CGroupNode::ReadCreateTime() const {

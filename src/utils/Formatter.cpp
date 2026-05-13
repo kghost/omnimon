@@ -11,8 +11,6 @@ std::string DiskSizeToString(uint64_t size) {
   constexpr const uint64_t T = G * 1024ull;
   constexpr const uint64_t P = T * 1024ull;
   constexpr const uint64_t E = P * 1024ull;
-  constexpr const uint64_t Z = E * 1024ull;
-  constexpr const uint64_t Y = Z * 1024ull;
 
   if (size < 10 * K) {
     return std::format("{:d}B", size);
@@ -26,12 +24,8 @@ std::string DiskSizeToString(uint64_t size) {
     return std::format("{:d}T", size / T);
   } else if (size < 10 * E) {
     return std::format("{:d}P", size / P);
-  } else if (size < 10 * Z) {
-    return std::format("{:d}E", size / E);
-  } else if (size < 10 * Y) {
-    return std::format("{:d}Z", size / Z);
   } else {
-    return std::format("{:d}Y", size / Y);
+    return std::format("{:d}E", size / E);
   }
 }
 

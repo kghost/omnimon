@@ -41,7 +41,7 @@ public:
   DirectoryWatcher& operator=(const DirectoryWatcher&) = delete;
   DirectoryWatcher& operator=(DirectoryWatcher&&) = delete;
 
-  WatchDescriptor AddDescriptor(const std::filesystem::path& path);
+  WatchDescriptor AddDescriptor(DirectoryWatchDescriptor& descriptor, const std::filesystem::path& path);
   void RemoveDescriptor(WatchDescriptor wd);
 
   void OnRead() override;

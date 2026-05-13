@@ -4,13 +4,11 @@
 #include <fstream>
 #include <pwd.h>
 #include <ranges>
-#include <regex>
 #include <sstream>
 #include <string>
 #include <sys/stat.h>
 
 #include "../../utils/Clock.hpp"
-#include "../../utils/Error.hpp"
 
 namespace backend::process {
 

@@ -14,7 +14,7 @@ class CGroupNode;
 class CGroupManager {
 public:
   explicit CGroupManager(events::EventLoop& loop);
-  ~CGroupManager() = default;
+  ~CGroupManager();
 
   CGroupManager(const CGroupManager&) = delete;
   CGroupManager(CGroupManager&&) = delete;

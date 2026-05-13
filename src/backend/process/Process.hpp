@@ -7,7 +7,6 @@
 #include <memory>
 #include <string>
 
-#include "../metrics/Gauge.hpp"
 #include "ProcessGauge.hpp"
 #include "Types.hpp"
 
