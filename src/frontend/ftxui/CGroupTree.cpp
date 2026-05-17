@@ -1,15 +1,26 @@
 #include "CGroupTree.hpp"
 
-#include <algorithm>
 #include <cassert>
-#include <format>
+#include <functional>
 #include <map>
+#include <memory>
 #include <ranges>
 #include <vector>
 
+#include "../../utils/Clock.hpp"
+#include "../../utils/Formatter.hpp"
+
 namespace frontend::ftxui {
 
-CGroupTree::Row::Row(std::shared_ptr<backend::cgroupv2::CGroupNode> node) : Node(std::move(node)), Metrics(Node) {}
+CGroupTree::Row::Row(CGroupTree& tree, backend::cgroupv2::CGroupNode& node) : _Tree(tree), Node(node), Metrics(node) {
+  OnNodeRemoving = node.OnNodeRemoving([this](bool removed) {
+    if (removed) {
+      _Tree.OnRowRemoving(*this);
+    }
+  });
+}
+
+CGroupTree::Row::~Row() {}
 
 void CGroupTree::Row::UpdateMetrics() { Metrics.ReadFromDirectory(); }
 
@@ -23,20 +34,12 @@ CGroupTree::CGroupTree(backend::events::EventLoop& loop, std::shared_ptr<backend
 std::string CGroupTree::GetTabName() const { return kCGroupV2TabName; }
 
 void CGroupTree::MoveCursorAndDraw(ssize_t offset) {
-  if (_Rows.empty()) {
-    return;
+  if (_CursorRow != _Rows.end()) {
+    auto& selected = (*_CursorRow)->Node;
+    auto& nextSelected = _Manager.MoveCursor(selected, offset);
+    auto nodes = _Manager.GetAround(nextSelected, std::distance(_Rows.begin(), _CursorRow), _TableCapacity);
+    UpdateData(nextSelected, nodes);
   }
-
-  auto distance = std::distance(_Rows.begin(), _CursorRow);
-  auto target = static_cast<ssize_t>(distance) + offset;
-  if (target < 0) {
-    _CursorRow = _Rows.begin();
-  } else if (target >= static_cast<ssize_t>(_Rows.size())) {
-    _CursorRow = std::prev(_Rows.end());
-  } else {
-    _CursorRow = std::next(_Rows.begin(), target);
-  }
-  _Refresh();
 }
 
 void CGroupTree::OnTableSizeChange(::ftxui::Box box) {
@@ -48,94 +51,79 @@ void CGroupTree::OnTableSizeChange(::ftxui::Box box) {
   }
 }
 
-void CGroupTree::Update() {
-  auto nodes = GetTreeNodes();
-  if (nodes.empty()) {
-    _Rows.clear();
+void CGroupTree::OnRowRemoving(Row& row) {
+  if (!_Rows.empty()) {
+    if (_CursorRow != _Rows.end() && _CursorRow->get() == std::addressof(row)) {
+      auto parent = row.Node.GetParent();
+      if (parent.has_value()) {
+        auto it = std::ranges::find(_Rows, std::addressof(parent.value().get()),
+                                    [](auto& row) { return std::addressof(row->Node); });
+        _CursorRow = (it != _Rows.end()) ? it : _Rows.begin();
+      } else {
+        _CursorRow = _Rows.begin();
+      }
+    }
+  } else {
     _CursorRow = _Rows.end();
-    return;
   }
-
-  UpdateData(std::move(nodes));
 }
 
-std::vector<std::pair<std::shared_ptr<backend::cgroupv2::CGroupNode>, ssize_t>> CGroupTree::GetTreeNodes() {
-  std::vector<std::pair<std::shared_ptr<backend::cgroupv2::CGroupNode>, ssize_t>> result;
-
-  auto root = _Manager.GetRoot();
-  std::function<void(const std::shared_ptr<backend::cgroupv2::CGroupNode>&, ssize_t)> walk;
-  walk = [&](const std::shared_ptr<backend::cgroupv2::CGroupNode>& node, ssize_t depth) {
-    result.emplace_back(node, depth);
-    for (const auto& child : node->GetChildren()) {
-      walk(child, depth + 1);
+void CGroupTree::Update() {
+  auto size = _TableCapacity;
+  if (size > 0) {
+    if (_CursorRow != _Rows.end()) {
+      auto& selected = (*_CursorRow)->Node;
+      auto cursorPosition = std::min(size - 1, std::distance(_Rows.begin(), _CursorRow));
+      auto nodes = _Manager.GetAround(selected, cursorPosition, size);
+      UpdateData(selected, nodes);
+    } else {
+      auto nodes = _Manager.GetTopK(size);
+      if (!nodes.empty()) {
+        auto selected = nodes[0];
+        UpdateData(selected, nodes);
+      } else {
+        RemoveData();
+      }
     }
-  };
-
-  walk(root, 0);
-  return result;
-}
-
-void CGroupTree::UpdateRowDisplay(Row& row, ssize_t depth) {
-  const auto& node = row.Node;
-  row.Name = node->GetName();
-  row.PathDisplay = std::string(static_cast<size_t>(depth) * 2, ' ') + row.Name;
-  row.UpdateMetrics();
-
-  const auto formatNumber = [&](const std::optional<backend::metrics::DataType>& value) {
-    if (!value.has_value()) {
-      return std::string("-");
-    }
-    return std::format("{}", *value);
-  };
-
-  row.MemoryDisplay = row.Metrics.GetMemoryCurrent().has_value()
-                          ? utils::DiskSizeToString(*row.Metrics.GetMemoryCurrent())
-                          : std::string("-");
-  row.PidsDisplay = formatNumber(row.Metrics.GetPidsCurrent());
-
-  if (row.Metrics.GetCpuUsageUsec().has_value()) {
-    row.CpuUsageDisplay = std::format("{:.2f}s", *row.Metrics.GetCpuUsageUsec() / 1'000'000.0);
-  } else {
-    row.CpuUsageDisplay = "-";
-  }
-  if (row.Metrics.GetCpuUserUsec().has_value()) {
-    row.CpuUserDisplay = std::format("{:.2f}s", *row.Metrics.GetCpuUserUsec() / 1'000'000.0);
-  } else {
-    row.CpuUserDisplay = "-";
-  }
-  if (row.Metrics.GetCpuSystemUsec().has_value()) {
-    row.CpuSystemDisplay = std::format("{:.2f}s", *row.Metrics.GetCpuSystemUsec() / 1'000'000.0);
-  } else {
-    row.CpuSystemDisplay = "-";
   }
 }
 
-void CGroupTree::UpdateData(std::vector<std::pair<std::shared_ptr<backend::cgroupv2::CGroupNode>, ssize_t>> nodes) {
-  std::map<std::string, std::list<std::unique_ptr<Row>>::iterator> existingRows;
+void CGroupTree::UpdateData(backend::cgroupv2::CGroupNode& selected,
+                            std::vector<std::reference_wrapper<backend::cgroupv2::CGroupNode>> nodes) {
+  std::map<backend::cgroupv2::CGroupNode*, std::list<std::unique_ptr<Row>>::iterator> existingRows;
   for (auto it = _Rows.begin(); it != _Rows.end(); ++it) {
-    existingRows.emplace((*it)->Node->GetPath().string(), it);
+    existingRows.emplace(std::addressof((*it)->Node), it);
   }
 
   std::list<std::unique_ptr<Row>> oldRows;
   oldRows.swap(_Rows);
   _CursorRow = _Rows.end();
 
-  for (auto& [node, depth] : nodes) {
-    const auto path = node->GetPath().string();
-    auto it = existingRows.find(path);
+  for (auto& node : nodes) {
+    auto it = existingRows.find(std::addressof(node.get()));
     if (it != existingRows.end()) {
       _Rows.splice(_Rows.end(), oldRows, it->second);
-      UpdateRowDisplay(*_Rows.back(), depth);
       existingRows.erase(it);
+      _Rows.back()->UpdateMetrics();
     } else {
-      _Rows.push_back(std::make_unique<Row>(node));
-      UpdateRowDisplay(*_Rows.back(), depth);
+      _Rows.push_back(std::make_unique<Row>(*this, node));
+      for (auto& column : _Columns) {
+        column->RegisterRow(*_Rows.back());
+      }
+    }
+    if (selected == node) {
+      _CursorRow = std::prev(_Rows.end());
     }
   }
 
   if (_CursorRow == _Rows.end() && !_Rows.empty()) {
     _CursorRow = _Rows.begin();
   }
+}
+
+void CGroupTree::RemoveData() {
+  _Rows.clear();
+  _CursorRow = _Rows.end();
 }
 
 bool CGroupTree::OnEvent(::ftxui::Event event) {
@@ -146,11 +134,15 @@ bool CGroupTree::OnEvent(::ftxui::Event event) {
   if (event == ::ftxui::Event::ArrowUp) {
     if (_CursorRow != _Rows.begin()) {
       _CursorRow = std::prev(_CursorRow);
+    } else {
+      MoveCursorAndDraw(-1);
     }
     return true;
   } else if (event == ::ftxui::Event::ArrowDown) {
     if (_CursorRow != std::prev(_Rows.end())) {
       _CursorRow = std::next(_CursorRow);
+    } else {
+      MoveCursorAndDraw(1);
     }
     return true;
   } else if (event == ::ftxui::Event::PageUp) {
@@ -200,6 +192,7 @@ bool CGroupTree::OnEvent(::ftxui::Event event) {
 std::list<std::unique_ptr<CGroupTree::Column>> CGroupTree::CreateDefaultColumns() {
   struct CursorColumn : public Column {
     std::string GetHeaderText() const override { return "≡"; }
+    void RegisterRow(Row& row) const override {}
     std::string GetDataText(bool isRowSelected, bool, Row& row) const override { return isRowSelected ? "⮚" : " "; }
     void Decorate(::ftxui::TableSelection selection) const override {
       selection.DecorateCells(::ftxui::size(::ftxui::WidthOrHeight::WIDTH, ::ftxui::Constraint::EQUAL, 1));
@@ -208,36 +201,65 @@ std::list<std::unique_ptr<CGroupTree::Column>> CGroupTree::CreateDefaultColumns(
 
   struct PathColumn : public Column {
     std::string GetHeaderText() const override { return "CGroup"; }
-    std::string GetDataText(bool, bool, Row& row) const override { return row.PathDisplay; }
+    void RegisterRow(Row& row) const override {}
+    std::string GetDataText(bool, bool, Row& row) const override {
+      return utils::TreeString(row.Node.GetTreePosition()) + row.Node.GetName();
+    }
     void Decorate(::ftxui::TableSelection) const override {}
   };
 
   struct MemoryColumn : public Column {
     std::string GetHeaderText() const override { return "Memory"; }
+    void RegisterRow(Row& row) const override {
+      row.MemoryUpdater = backend::metrics::MakeSubscriber(
+          row.Metrics.GetMemoryCurrent(), [&row](auto metric) { row.MemoryDisplay = utils::DiskSizeToString(metric); });
+    }
     std::string GetDataText(bool, bool, Row& row) const override { return row.MemoryDisplay; }
     void Decorate(::ftxui::TableSelection selection) const override { selection.DecorateCells(::ftxui::align_right); }
   };
 
   struct PidsColumn : public Column {
     std::string GetHeaderText() const override { return "PIDs"; }
+    void RegisterRow(Row& row) const override {
+      row.PidsUpdater = backend::metrics::MakeSubscriber(
+          row.Metrics.GetPidsCurrent(), [&row](auto metric) { row.PidsDisplay = std::to_string(metric); });
+    }
     std::string GetDataText(bool, bool, Row& row) const override { return row.PidsDisplay; }
     void Decorate(::ftxui::TableSelection selection) const override { selection.DecorateCells(::ftxui::align_right); }
   };
 
   struct CpuUsageColumn : public Column {
     std::string GetHeaderText() const override { return "CPU"; }
+    void RegisterRow(Row& row) const override {
+      row.CpuUsageUpdater =
+          backend::metrics::MakeSubscriber(row.Metrics.GetCpuUsageUsec(), [&row](std::chrono::microseconds metric) {
+            row.CpuUsageDisplay = utils::FormatDuration(metric);
+          });
+    }
     std::string GetDataText(bool, bool, Row& row) const override { return row.CpuUsageDisplay; }
     void Decorate(::ftxui::TableSelection selection) const override { selection.DecorateCells(::ftxui::align_right); }
   };
 
   struct CpuUserColumn : public Column {
     std::string GetHeaderText() const override { return "User"; }
+    void RegisterRow(Row& row) const override {
+      row.CpuUserUpdater =
+          backend::metrics::MakeSubscriber(row.Metrics.GetCpuUserUsec(), [&row](std::chrono::microseconds metric) {
+            row.CpuUserDisplay = utils::FormatDuration(metric);
+          });
+    }
     std::string GetDataText(bool, bool, Row& row) const override { return row.CpuUserDisplay; }
     void Decorate(::ftxui::TableSelection selection) const override { selection.DecorateCells(::ftxui::align_right); }
   };
 
   struct CpuSystemColumn : public Column {
     std::string GetHeaderText() const override { return "System"; }
+    void RegisterRow(Row& row) const override {
+      row.CpuSystemUpdater =
+          backend::metrics::MakeSubscriber(row.Metrics.GetCpuSystemUsec(), [&row](std::chrono::microseconds metric) {
+            row.CpuSystemDisplay = utils::FormatDuration(metric);
+          });
+    }
     std::string GetDataText(bool, bool, Row& row) const override { return row.CpuSystemDisplay; }
     void Decorate(::ftxui::TableSelection selection) const override { selection.DecorateCells(::ftxui::align_right); }
   };
@@ -245,8 +267,8 @@ std::list<std::unique_ptr<CGroupTree::Column>> CGroupTree::CreateDefaultColumns(
   std::list<std::unique_ptr<Column>> columns;
   columns.push_back(std::make_unique<CursorColumn>());
   columns.push_back(std::make_unique<PathColumn>());
-  columns.push_back(std::make_unique<MemoryColumn>());
   columns.push_back(std::make_unique<PidsColumn>());
+  columns.push_back(std::make_unique<MemoryColumn>());
   columns.push_back(std::make_unique<CpuUsageColumn>());
   columns.push_back(std::make_unique<CpuUserColumn>());
   columns.push_back(std::make_unique<CpuSystemColumn>());

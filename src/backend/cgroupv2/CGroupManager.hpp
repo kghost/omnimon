@@ -3,6 +3,9 @@
 #include <filesystem>
 #include <map>
 #include <memory>
+#include <optional>
+#include <string>
+#include <vector>
 
 #include "../events/DirectoryWatcher.hpp"
 #include "../events/Events.hpp"
@@ -22,16 +25,27 @@ public:
   CGroupManager& operator=(CGroupManager&&) = delete;
 
   events::DirectoryWatcher& GetWatcher() { return _Watcher; }
-  std::shared_ptr<CGroupNode> GetRoot() const { return _Root; }
+  CGroupNode& GetRoot() const { return _Root; }
 
-  void OnNodeAdded(CGroupNode& node);
-  void OnNodePreRemove(CGroupNode& node);
+  CGroupNode& MoveCursor(CGroupNode& current, ssize_t offset);
+  std::vector<std::reference_wrapper<CGroupNode>> GetTopK(ssize_t k);
+  std::vector<std::reference_wrapper<CGroupNode>> GetAround(CGroupNode& node, ssize_t index, ssize_t max);
+
+  CGroupNode& CreateNode(std::optional<std::reference_wrapper<CGroupNode>> parent, std::string name);
+  void OnNodePreRemove(const std::filesystem::path& path);
+
+  std::function<bool(const CGroupNode&, const CGroupNode&)> GetCurrentOrder() const;
+  void SetCurrentOrder(std::function<bool(const CGroupNode&, const CGroupNode&)> order);
 
 private:
   events::EventLoop& _EventLoop;
   events::DirectoryWatcher _Watcher;
-  std::map<std::filesystem::path, std::reference_wrapper<CGroupNode>> _NodeMap;
-  std::shared_ptr<CGroupNode> _Root;
+  std::map<std::filesystem::path, std::unique_ptr<CGroupNode>> _NodeMap;
+  CGroupNode& _Root;
+  std::function<bool(const CGroupNode&, const CGroupNode&)> _Order;
+
+  std::tuple<std::filesystem::path, std::unique_ptr<CGroupNode>>
+  NewNode(std::optional<std::reference_wrapper<CGroupNode>> parent, std::string name);
 };
 
 } // namespace backend::cgroupv2

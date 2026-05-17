@@ -52,4 +52,17 @@ std::chrono::system_clock::time_point FromSteadyClock(std::chrono::steady_clock:
   return SystemBootTime() + (tp - JiffyBootTime());
 }
 
+std::string FormatDuration(std::chrono::microseconds value) {
+  if (value < std::chrono::minutes(1)) {
+    return std::format("{:%S}", value);
+  } else if (value < std::chrono::hours(1)) {
+    return std::format("{:%M:%S}", value);
+  } else if (value < std::chrono::days(1)) {
+    return std::format("{:%H:%M:%S}", value);
+  } else {
+    auto days = std::chrono::duration_cast<std::chrono::days>(value).count();
+    return std::format("{:d}d{:%H:%M:%S}", days, value);
+  }
+}
+
 } // namespace utils

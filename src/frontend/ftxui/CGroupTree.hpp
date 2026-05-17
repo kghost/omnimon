@@ -14,7 +14,6 @@
 #include "../../backend/events/Events.hpp"
 #include "../../backend/metrics/Binding.hpp"
 #include "../../backend/metrics/SimplePublisher.hpp"
-#include "../../utils/Formatter.hpp"
 #include "TabSelector.hpp"
 
 namespace frontend::ftxui {
@@ -31,17 +30,25 @@ public:
 
   class Row {
   public:
-    explicit Row(std::shared_ptr<backend::cgroupv2::CGroupNode> node);
+    explicit Row(CGroupTree& tree, backend::cgroupv2::CGroupNode& node);
+    ~Row();
 
-    std::shared_ptr<backend::cgroupv2::CGroupNode> Node;
-    std::string Name;
-    std::string PathDisplay;
+    CGroupTree& _Tree;
+    backend::cgroupv2::CGroupNode& Node;
+    backend::cgroupv2::CGroupMetrics Metrics;
+    std::shared_ptr<backend::metrics::SubscriberBase> OnNodeRemoving;
+
     std::string MemoryDisplay;
     std::string PidsDisplay;
     std::string CpuUsageDisplay;
     std::string CpuUserDisplay;
     std::string CpuSystemDisplay;
-    backend::cgroupv2::CGroupMetrics Metrics;
+
+    std::shared_ptr<backend::metrics::SubscriberBase> MemoryUpdater;
+    std::shared_ptr<backend::metrics::SubscriberBase> PidsUpdater;
+    std::shared_ptr<backend::metrics::SubscriberBase> CpuUsageUpdater;
+    std::shared_ptr<backend::metrics::SubscriberBase> CpuUserUpdater;
+    std::shared_ptr<backend::metrics::SubscriberBase> CpuSystemUpdater;
 
     void UpdateMetrics();
   };
@@ -50,9 +57,12 @@ public:
   public:
     virtual ~Column() = default;
     virtual std::string GetHeaderText() const = 0;
+    virtual void RegisterRow(Row& row) const = 0;
     virtual std::string GetDataText(bool isRowSelected, bool isColumnSelected, Row& row) const = 0;
     virtual void Decorate(::ftxui::TableSelection selection) const = 0;
   };
+
+  void OnRowRemoving(Row& row);
 
 private:
   std::function<void()> _Refresh;
@@ -69,9 +79,10 @@ private:
   void OnTableSizeChange(::ftxui::Box box);
   void Update();
   void MoveCursorAndDraw(ssize_t offset);
-  void UpdateData(std::vector<std::pair<std::shared_ptr<backend::cgroupv2::CGroupNode>, ssize_t>> nodes);
-  std::vector<std::pair<std::shared_ptr<backend::cgroupv2::CGroupNode>, ssize_t>> GetTreeNodes();
-  void UpdateRowDisplay(Row& row, ssize_t depth);
+
+  void UpdateData(backend::cgroupv2::CGroupNode& selected,
+                  std::vector<std::reference_wrapper<backend::cgroupv2::CGroupNode>> nodes);
+  void RemoveData();
 
   std::list<std::unique_ptr<Column>> CreateDefaultColumns();
 };

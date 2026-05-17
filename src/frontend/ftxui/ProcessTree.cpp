@@ -37,7 +37,6 @@ void ProcessTree::Update() {
   auto size = _TableCapacity;
   if (size > 0) {
     _ProcessListing.UpdateList();
-    auto cursor = _CursorRow;
     std::vector<std::shared_ptr<backend::process::Process>> ps;
     std::shared_ptr<backend::process::Process> selectedProcess;
     if (_CursorRow != _Rows.end()) {

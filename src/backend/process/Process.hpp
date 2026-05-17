@@ -7,12 +7,15 @@
 #include <memory>
 #include <string>
 
-#include "ProcessGauge.hpp"
+#include "../../utils/TreeString.hpp"
+#include "../metrics/SharedGauge.hpp"
 #include "Types.hpp"
 
 namespace backend::process {
 
-class Process final : public std::enable_shared_from_this<Process>, public ProcessGaugeOwner {
+using GaugePtr = std::shared_ptr<backend::metrics::Gauge>;
+
+class Process final : public std::enable_shared_from_this<Process>, public metrics::SharedPublisherOwner {
 public:
   static const std::chrono::steady_clock::time_point EPOCH;
 
@@ -40,9 +43,8 @@ public:
   void SetParent(std::shared_ptr<Process> parent) { _Parent = parent; }
   void AddChild(std::shared_ptr<Process> child) { _Children[child->GetPid()] = child; }
   void RemoveChild(PidType pid) { _Children.erase(pid); }
-  enum class ChildPosition { NotLast, Last };
-  static std::list<ChildPosition> GetTreePosition(std::shared_ptr<Process> me);
-  ChildPosition GetChildPosition(std::shared_ptr<const Process> child) const;
+  static std::list<utils::TreeStringPosition> GetTreePosition(std::shared_ptr<Process> me);
+  utils::TreeStringPosition GetChildPosition(std::shared_ptr<const Process> child) const;
   static std::list<std::shared_ptr<Process>> GetAncestors(std::shared_ptr<Process> p);
 
 private:
@@ -61,10 +63,10 @@ private:
   std::chrono::steady_clock::time_point _StartTime;
   std::chrono::steady_clock::time_point _LastUpdate;
 
-  std::shared_ptr<ProcessGauge> _State;
-  std::shared_ptr<ProcessGauge> _Mem;
-  std::shared_ptr<ProcessGauge> _UserTime;
-  std::shared_ptr<ProcessGauge> _SystemTime;
+  std::shared_ptr<metrics::SharedGauge> _State;
+  std::shared_ptr<metrics::SharedGauge> _Mem;
+  std::shared_ptr<metrics::SharedGauge> _UserTime;
+  std::shared_ptr<metrics::SharedGauge> _SystemTime;
 
   std::shared_ptr<Process> _Parent;
   std::map<PidType, std::weak_ptr<Process>> _Children;

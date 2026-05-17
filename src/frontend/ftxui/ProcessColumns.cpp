@@ -128,8 +128,8 @@ void ColumnTime::RegisterRow(ProcessTree::Row& row) const {
   auto process = row.MetricsPtr->GetProcess();
   row.TimeUpdater = backend::metrics::MakeSubscriber(
       std::make_shared<backend::metrics::Plus>(process->GetUserTime(), process->GetSystemTime()), [&row](auto time) {
-        auto text = std::format("{:%H:%M:%S}", std::chrono::floor<std::chrono::seconds>(utils::JiffyToDuration(time)));
-        row.TimeDisplay = text;
+        row.TimeDisplay =
+            std::format("{:%H:%M:%S}", std::chrono::floor<std::chrono::seconds>(utils::JiffyToDuration(time)));
       });
 }
 
@@ -277,39 +277,11 @@ std::string ColumnCommand::GetHeaderText() const { return "Command"; }
 void ColumnCommand::RegisterRow(ProcessTree::Row& row) const {}
 
 std::string ColumnCommand::GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const {
-  auto process = row.MetricsPtr->GetProcess();
-  return TreeString(process) + FormatCommand(row.MetricsPtr->GetCommandLine());
+  return utils::TreeString(backend::process::Process::GetTreePosition(row.MetricsPtr->GetProcess())) +
+         FormatCommand(row.MetricsPtr->GetCommandLine());
 }
 
 void ColumnCommand::Decorate(::ftxui::TableSelection selection) const {}
-
-std::string ColumnCommand::TreeString(std::shared_ptr<backend::process::Process> process) {
-  std::string result;
-  auto list = backend::process::Process::GetTreePosition(process);
-  for (auto it = list.begin(); it != list.end(); ++it) {
-    auto it2 = it;
-    if (++it2 != list.end()) {
-      switch (*it) {
-      case backend::process::Process::ChildPosition::NotLast:
-        result += "│ ";
-        break;
-      case backend::process::Process::ChildPosition::Last:
-        result += "  ";
-        break;
-      }
-    } else {
-      switch (*it) {
-      case backend::process::Process::ChildPosition::NotLast:
-        result += "├─";
-        break;
-      case backend::process::Process::ChildPosition::Last:
-        result += "└─";
-        break;
-      }
-    }
-  }
-  return result;
-}
 
 std::string ColumnCommand::FormatCommand(const std::string& command) {
   static auto replacements = std::vector{

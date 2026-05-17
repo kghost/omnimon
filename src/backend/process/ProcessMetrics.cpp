@@ -9,18 +9,20 @@
 #include <string>
 #include <sys/stat.h>
 
-#include "../../utils/Clock.hpp"
 #include "../../utils/Error.hpp"
+#include "../metrics/SharedGauge.hpp"
 #include "Process.hpp"
 
 namespace backend::process {
 
 ProcessMetrics::ProcessMetrics(std::shared_ptr<Process> process)
-    : _Process(process), _ReadBytes(std::make_shared<ProcessGauge>(*this)),
-      _WriteBytes(std::make_shared<ProcessGauge>(*this)), _ReadCalls(std::make_shared<ProcessGauge>(*this)),
-      _WriteCalls(std::make_shared<ProcessGauge>(*this)), _DiskReadBytes(std::make_shared<ProcessGauge>(*this)),
-      _DiskWriteBytes(std::make_shared<ProcessGauge>(*this)),
-      _DiskCancelledWriteBytes(std::make_shared<ProcessGauge>(*this)) {
+    : _Process(process), _ReadBytes(std::make_shared<metrics::SharedGauge>(*this)),
+      _WriteBytes(std::make_shared<metrics::SharedGauge>(*this)),
+      _ReadCalls(std::make_shared<metrics::SharedGauge>(*this)),
+      _WriteCalls(std::make_shared<metrics::SharedGauge>(*this)),
+      _DiskReadBytes(std::make_shared<metrics::SharedGauge>(*this)),
+      _DiskWriteBytes(std::make_shared<metrics::SharedGauge>(*this)),
+      _DiskCancelledWriteBytes(std::make_shared<metrics::SharedGauge>(*this)) {
   UpdateMetrics();
 }
 

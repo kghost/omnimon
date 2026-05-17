@@ -7,6 +7,16 @@
         {
             "type": "lldb-dap",
             "request": "launch",
+            "name": "(lldp-dap) Launch WalkCGroupNodes",
+            "program": "${workspaceFolder}/build/omnimon-cgroupv2-walker",
+            "args": [],
+            "env": [],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal"
+        },
+        {
+            "type": "lldb-dap",
+            "request": "launch",
             "name": "(lldp-dap) Launch",
             "program": "${workspaceFolder}/build/omnimon",
             "args": [],
@@ -24,23 +34,6 @@
             "name": "(lldp-dap) Attach",
             "program": "${workspaceFolder}/build/omnimon",
             "pid": 1439061
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "(lldb) Launch omnimon",
-            "program": "${workspaceFolder}/build/omnimon",
-            "args": [],
-            "cwd": "${workspaceFolder}",
-            "preLaunchTask": "CMake Build",
-            "terminal": "integrated",
-            "env": {
-                "TERM": "xterm-256color"
-            },
-            "initCommands": [
-                "process handle SIGWINCH --stop false --notify false --pass true",
-                "process handle SIGINT --stop false --notify false --pass true"
-            ]
         }
     ]
 }

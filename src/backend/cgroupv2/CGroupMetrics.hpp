@@ -1,42 +1,40 @@
 #pragma once
 
+#include <chrono>
 #include <memory>
-#include <optional>
 
-#include "../metrics/DateType.hpp"
+#include "../metrics/SharedGauge.hpp"
 
 namespace backend::cgroupv2 {
 
 class CGroupNode;
 
-class CGroupMetrics {
+class CGroupMetrics : public metrics::SharedPublisherOwner {
 public:
-  CGroupMetrics(std::shared_ptr<CGroupNode> node);
+  CGroupMetrics(CGroupNode& node);
   ~CGroupMetrics() = default;
 
-  const std::shared_ptr<CGroupNode>& GetNode() const;
+  std::chrono::steady_clock::time_point GetLastUpdate() const override { return _LastUpdate; }
 
-  const std::optional<metrics::DataType>& GetMemoryCurrent() const;
-  const std::optional<metrics::DataType>& GetPidsCurrent() const;
-  const std::optional<metrics::DataType>& GetCpuUsageUsec() const;
-  const std::optional<metrics::DataType>& GetCpuUserUsec() const;
-  const std::optional<metrics::DataType>& GetCpuSystemUsec() const;
-
-  void SetMemoryCurrent(std::optional<metrics::DataType> value);
-  void SetPidsCurrent(std::optional<metrics::DataType> value);
-  void SetCpuUsageUsec(std::optional<metrics::DataType> value);
-  void SetCpuUserUsec(std::optional<metrics::DataType> value);
-  void SetCpuSystemUsec(std::optional<metrics::DataType> value);
+  std::shared_ptr<metrics::SharedGauge> GetMemoryCurrent() const { return _MemoryCurrent; }
+  std::shared_ptr<metrics::SharedGauge> GetPidsCurrent() const { return _PidsCurrent; }
+  std::shared_ptr<metrics::SharedPublisher<std::chrono::microseconds>> GetCpuUsageUsec() const { return _CpuUsageUsec; }
+  std::shared_ptr<metrics::SharedPublisher<std::chrono::microseconds>> GetCpuUserUsec() const { return _CpuUserUsec; }
+  std::shared_ptr<metrics::SharedPublisher<std::chrono::microseconds>> GetCpuSystemUsec() const {
+    return _CpuSystemUsec;
+  }
 
   void ReadFromDirectory();
 
 private:
-  std::shared_ptr<CGroupNode> _Node;
-  std::optional<metrics::DataType> _MemoryCurrent;
-  std::optional<metrics::DataType> _PidsCurrent;
-  std::optional<metrics::DataType> _CpuUsageUsec;
-  std::optional<metrics::DataType> _CpuUserUsec;
-  std::optional<metrics::DataType> _CpuSystemUsec;
+  CGroupNode& _Node;
+  std::chrono::steady_clock::time_point _LastUpdate;
+
+  std::shared_ptr<metrics::SharedGauge> _MemoryCurrent;
+  std::shared_ptr<metrics::SharedGauge> _PidsCurrent;
+  std::shared_ptr<metrics::SharedPublisher<std::chrono::microseconds>> _CpuUsageUsec;
+  std::shared_ptr<metrics::SharedPublisher<std::chrono::microseconds>> _CpuUserUsec;
+  std::shared_ptr<metrics::SharedPublisher<std::chrono::microseconds>> _CpuSystemUsec;
 };
 
 } // namespace backend::cgroupv2

@@ -14,4 +14,6 @@ std::chrono::steady_clock::time_point JiffyToClock(uint64_t jiffies);
 std::chrono::system_clock::time_point SystemBootTime();
 std::chrono::system_clock::time_point FromSteadyClock(std::chrono::steady_clock::time_point tp);
 
+std::string FormatDuration(std::chrono::microseconds value);
+
 } // namespace utils

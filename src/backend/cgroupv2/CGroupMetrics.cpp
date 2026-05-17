@@ -56,44 +56,35 @@ std::map<std::string, metrics::DataType> ReadKeyValueFile(const std::filesystem:
   return result;
 }
 
-CGroupMetrics::CGroupMetrics(std::shared_ptr<CGroupNode> node) : _Node(std::move(node)) { ReadFromDirectory(); }
-
-const std::shared_ptr<CGroupNode>& CGroupMetrics::GetNode() const { return _Node; }
-
-const std::optional<metrics::DataType>& CGroupMetrics::GetMemoryCurrent() const { return _MemoryCurrent; }
-
-const std::optional<metrics::DataType>& CGroupMetrics::GetPidsCurrent() const { return _PidsCurrent; }
-
-const std::optional<metrics::DataType>& CGroupMetrics::GetCpuUsageUsec() const { return _CpuUsageUsec; }
-
-const std::optional<metrics::DataType>& CGroupMetrics::GetCpuUserUsec() const { return _CpuUserUsec; }
-
-const std::optional<metrics::DataType>& CGroupMetrics::GetCpuSystemUsec() const { return _CpuSystemUsec; }
-
-void CGroupMetrics::SetMemoryCurrent(std::optional<metrics::DataType> value) { _MemoryCurrent = std::move(value); }
-
-void CGroupMetrics::SetPidsCurrent(std::optional<metrics::DataType> value) { _PidsCurrent = std::move(value); }
-
-void CGroupMetrics::SetCpuUsageUsec(std::optional<metrics::DataType> value) { _CpuUsageUsec = std::move(value); }
-
-void CGroupMetrics::SetCpuUserUsec(std::optional<metrics::DataType> value) { _CpuUserUsec = std::move(value); }
-
-void CGroupMetrics::SetCpuSystemUsec(std::optional<metrics::DataType> value) { _CpuSystemUsec = std::move(value); }
+CGroupMetrics::CGroupMetrics(CGroupNode& node)
+    : _Node(node), _LastUpdate(std::chrono::steady_clock::now()),
+      _MemoryCurrent(std::make_shared<metrics::SharedGauge>(*this)),
+      _PidsCurrent(std::make_shared<metrics::SharedGauge>(*this)),
+      _CpuUsageUsec(std::make_shared<metrics::SharedPublisher<std::chrono::microseconds>>(*this)),
+      _CpuUserUsec(std::make_shared<metrics::SharedPublisher<std::chrono::microseconds>>(*this)),
+      _CpuSystemUsec(std::make_shared<metrics::SharedPublisher<std::chrono::microseconds>>(*this)) {
+  ReadFromDirectory();
+}
 
 void CGroupMetrics::ReadFromDirectory() {
-  const auto path = _Node->GetPath();
-  SetMemoryCurrent(ReadNumericFile(path / "memory.current"));
-  SetPidsCurrent(ReadNumericFile(path / "pids.current"));
+  _LastUpdate = std::chrono::steady_clock::now();
+  const auto path = _Node.GetPath();
+  if (auto value = ReadNumericFile(path / "memory.current")) {
+    _MemoryCurrent->SetValue(value.value());
+  }
+  if (auto value = ReadNumericFile(path / "pids.current")) {
+    _PidsCurrent->SetValue(value.value());
+  }
 
   auto cpuStatValues = ReadKeyValueFile(path / "cpu.stat");
-  if (cpuStatValues.contains("usage_usec")) {
-    SetCpuUsageUsec(cpuStatValues["usage_usec"]);
+  if (auto value = cpuStatValues.find("usage_usec"); value != cpuStatValues.end()) {
+    _CpuUsageUsec->SetValue(std::chrono::microseconds(value->second));
   }
-  if (cpuStatValues.contains("user_usec")) {
-    SetCpuUserUsec(cpuStatValues["user_usec"]);
+  if (auto value = cpuStatValues.find("user_usec"); value != cpuStatValues.end()) {
+    _CpuUserUsec->SetValue(std::chrono::microseconds(value->second));
   }
-  if (cpuStatValues.contains("system_usec")) {
-    SetCpuSystemUsec(cpuStatValues["system_usec"]);
+  if (auto value = cpuStatValues.find("system_usec"); value != cpuStatValues.end()) {
+    _CpuSystemUsec->SetValue(std::chrono::microseconds(value->second));
   }
 }
 

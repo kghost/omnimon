@@ -15,8 +15,9 @@ namespace backend::process {
 const std::chrono::steady_clock::time_point Process::EPOCH;
 
 Process::Process(const std::filesystem::path& dir)
-    : _ProcDirPath(dir), _State(std::make_shared<ProcessGauge>(*this)), _Mem(std::make_shared<ProcessGauge>(*this)),
-      _UserTime(std::make_shared<ProcessGauge>(*this)), _SystemTime(std::make_shared<ProcessGauge>(*this)) {}
+    : _ProcDirPath(dir), _State(std::make_shared<metrics::SharedGauge>(*this)),
+      _Mem(std::make_shared<metrics::SharedGauge>(*this)), _UserTime(std::make_shared<metrics::SharedGauge>(*this)),
+      _SystemTime(std::make_shared<metrics::SharedGauge>(*this)) {}
 
 Process::~Process() {
   if (_Parent) {
@@ -115,22 +116,19 @@ void Process::ParseStatFile() {
   _SystemTime->SetValue(ps.stime);
 }
 
-std::list<Process::ChildPosition> Process::GetTreePosition(std::shared_ptr<Process> me) {
-  std::list<ChildPosition> result;
+std::list<utils::TreeStringPosition> Process::GetTreePosition(std::shared_ptr<Process> me) {
+  std::list<utils::TreeStringPosition> result;
   for (auto [parent, current] = std::tuple{me->_Parent, me}; parent; current = parent, parent = parent->_Parent) {
     result.push_front(parent->GetChildPosition(current));
   }
   return result;
 }
 
-Process::ChildPosition Process::GetChildPosition(std::shared_ptr<const Process> child) const {
-  if (_Children.empty()) {
-    return ChildPosition::NotLast;
-  }
+utils::TreeStringPosition Process::GetChildPosition(std::shared_ptr<const Process> child) const {
   if (_Children.rbegin()->second.lock() == child) {
-    return ChildPosition::Last;
+    return utils::TreeStringPosition::Last;
   } else {
-    return ChildPosition::NotLast;
+    return utils::TreeStringPosition::NotLast;
   }
 }
 

@@ -11,7 +11,7 @@ using namespace backend;
 static void PrintCGroupTree(const cgroupv2::CGroupNode& node, const std::string& indent) {
   std::cout << indent << node.GetPath().string() << '\n';
   for (const auto& child : node.GetChildren()) {
-    PrintCGroupTree(*child, indent + "  ");
+    PrintCGroupTree(child, indent + "  ");
   }
 }
 
@@ -25,7 +25,7 @@ int main(int argc, char* argv[]) {
   try {
     events::EventLoop loop;
     cgroupv2::CGroupManager manager(loop);
-    PrintCGroupTree(*manager.GetRoot(), "");
+    PrintCGroupTree(manager.GetRoot(), "");
     std::cout << "Finished walking cgroup nodes." << std::endl;
     return 0;
   } catch (const std::exception& ex) {
