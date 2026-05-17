@@ -105,8 +105,10 @@ void CGroupTree::UpdateData(backend::cgroupv2::CGroupNode& selected,
       _Rows.splice(_Rows.end(), oldRows, it->second);
       existingRows.erase(it);
       _Rows.back()->UpdateMetrics();
+      // TODO: bind IoStat to row if new disk found in the IoStats map in the node
     } else {
       _Rows.push_back(std::make_unique<Row>(*this, node));
+      DiscoverColumns(*_Rows.back());
       for (auto& column : _Columns) {
         column->RegisterRow(*_Rows.back());
       }
@@ -162,13 +164,15 @@ bool CGroupTree::OnEvent(::ftxui::Event event) {
     return text("Loading...") | center | reflect([this](Box box) { this->OnTableSizeChange(box); });
   }
 
+  auto filterColumn = std::views::filter([](auto& c) { return c->IsShown; });
+
   std::vector<std::vector<std::string>> data;
-  data.push_back(_Columns |
+  data.push_back(_Columns | filterColumn |
                  std::views::transform([](const auto& column) -> std::string { return column->GetHeaderText(); }) |
                  std::ranges::to<std::vector>());
 
   for (auto& row : _Rows) {
-    data.push_back(_Columns | std::views::transform([&](const auto& column) -> std::string {
+    data.push_back(_Columns | filterColumn | std::views::transform([&](const auto& column) -> std::string {
                      bool isRowSelected = (row == *_CursorRow);
                      bool isColumnSelected = false;
                      return column->GetDataText(isRowSelected, isColumnSelected, *row);
@@ -182,7 +186,7 @@ bool CGroupTree::OnEvent(::ftxui::Event event) {
   table.SelectRow(0).Decorate(bold);
   table.SelectRow(0).Decorate(underlined);
 
-  for (auto [index, column] : std::views::enumerate(_Columns)) {
+  for (auto [index, column] : std::views::enumerate(_Columns | filterColumn)) {
     column->Decorate(table.SelectColumn(index));
   }
 
@@ -208,71 +212,133 @@ std::list<std::unique_ptr<CGroupTree::Column>> CGroupTree::CreateDefaultColumns(
     void Decorate(::ftxui::TableSelection) const override {}
   };
 
-  struct MemoryColumn : public Column {
-    std::string GetHeaderText() const override { return "Memory"; }
-    void RegisterRow(Row& row) const override {
-      row.MemoryUpdater = backend::metrics::MakeSubscriber(
-          row.Metrics.GetMemoryCurrent(), [&row](auto metric) { row.MemoryDisplay = utils::DiskSizeToString(metric); });
-    }
-    std::string GetDataText(bool, bool, Row& row) const override { return row.MemoryDisplay; }
+  struct StartTimeColumn : public Column {
+    std::string GetHeaderText() const override { return "Start"; }
+    void RegisterRow(Row& row) const override {}
+    std::string GetDataText(bool, bool, Row& row) const override { return utils::FormatTime(row.Node.GetCreateTime()); }
     void Decorate(::ftxui::TableSelection selection) const override { selection.DecorateCells(::ftxui::align_right); }
   };
 
   struct PidsColumn : public Column {
     std::string GetHeaderText() const override { return "PIDs"; }
     void RegisterRow(Row& row) const override {
-      row.PidsUpdater = backend::metrics::MakeSubscriber(
-          row.Metrics.GetPidsCurrent(), [&row](auto metric) { row.PidsDisplay = std::to_string(metric); });
+      row.Pids.Updater = backend::metrics::MakeSubscriber(
+          row.Metrics.GetPidsCurrent(), [&row](auto metric) { row.Pids.Display = std::to_string(metric); });
     }
-    std::string GetDataText(bool, bool, Row& row) const override { return row.PidsDisplay; }
+    std::string GetDataText(bool, bool, Row& row) const override { return row.Pids.Display; }
+    void Decorate(::ftxui::TableSelection selection) const override { selection.DecorateCells(::ftxui::align_right); }
+  };
+
+  struct MemoryColumn : public Column {
+    std::string GetHeaderText() const override { return "Memory"; }
+    void RegisterRow(Row& row) const override {
+      row.Memory.Updater = backend::metrics::MakeSubscriber(row.Metrics.GetMemoryCurrent(), [&row](auto metric) {
+        row.Memory.Display = utils::DiskSizeToString(metric);
+      });
+    }
+    std::string GetDataText(bool, bool, Row& row) const override { return row.Memory.Display; }
     void Decorate(::ftxui::TableSelection selection) const override { selection.DecorateCells(::ftxui::align_right); }
   };
 
   struct CpuUsageColumn : public Column {
     std::string GetHeaderText() const override { return "CPU"; }
     void RegisterRow(Row& row) const override {
-      row.CpuUsageUpdater =
-          backend::metrics::MakeSubscriber(row.Metrics.GetCpuUsageUsec(), [&row](std::chrono::microseconds metric) {
-            row.CpuUsageDisplay = utils::FormatDuration(metric);
-          });
+      row.CpuUsage.Updater = backend::metrics::MakeSubscriber(
+          row.Metrics.GetCpuUsageUsec(), [&row](auto metric) { row.CpuUsage.Display = utils::FormatDuration(metric); });
     }
-    std::string GetDataText(bool, bool, Row& row) const override { return row.CpuUsageDisplay; }
+    std::string GetDataText(bool, bool, Row& row) const override { return row.CpuUsage.Display; }
     void Decorate(::ftxui::TableSelection selection) const override { selection.DecorateCells(::ftxui::align_right); }
   };
 
   struct CpuUserColumn : public Column {
     std::string GetHeaderText() const override { return "User"; }
     void RegisterRow(Row& row) const override {
-      row.CpuUserUpdater =
-          backend::metrics::MakeSubscriber(row.Metrics.GetCpuUserUsec(), [&row](std::chrono::microseconds metric) {
-            row.CpuUserDisplay = utils::FormatDuration(metric);
-          });
+      row.CpuUser.Updater = backend::metrics::MakeSubscriber(
+          row.Metrics.GetCpuUserUsec(), [&row](auto metric) { row.CpuUser.Display = utils::FormatDuration(metric); });
     }
-    std::string GetDataText(bool, bool, Row& row) const override { return row.CpuUserDisplay; }
+    std::string GetDataText(bool, bool, Row& row) const override { return row.CpuUser.Display; }
     void Decorate(::ftxui::TableSelection selection) const override { selection.DecorateCells(::ftxui::align_right); }
   };
 
   struct CpuSystemColumn : public Column {
     std::string GetHeaderText() const override { return "System"; }
     void RegisterRow(Row& row) const override {
-      row.CpuSystemUpdater =
-          backend::metrics::MakeSubscriber(row.Metrics.GetCpuSystemUsec(), [&row](std::chrono::microseconds metric) {
-            row.CpuSystemDisplay = utils::FormatDuration(metric);
-          });
+      row.CpuSystem.Updater = backend::metrics::MakeSubscriber(row.Metrics.GetCpuSystemUsec(), [&row](auto metric) {
+        row.CpuSystem.Display = utils::FormatDuration(metric);
+      });
     }
-    std::string GetDataText(bool, bool, Row& row) const override { return row.CpuSystemDisplay; }
+    std::string GetDataText(bool, bool, Row& row) const override { return row.CpuSystem.Display; }
     void Decorate(::ftxui::TableSelection selection) const override { selection.DecorateCells(::ftxui::align_right); }
   };
 
   std::list<std::unique_ptr<Column>> columns;
   columns.push_back(std::make_unique<CursorColumn>());
   columns.push_back(std::make_unique<PathColumn>());
+  columns.push_back(std::make_unique<StartTimeColumn>());
   columns.push_back(std::make_unique<PidsColumn>());
   columns.push_back(std::make_unique<MemoryColumn>());
   columns.push_back(std::make_unique<CpuUsageColumn>());
   columns.push_back(std::make_unique<CpuUserColumn>());
   columns.push_back(std::make_unique<CpuSystemColumn>());
   return columns;
+}
+
+template <auto DiskToColumnLabel, auto CGroupTree::Row::IoMetrics::* RowMemberPtr,
+          auto backend::cgroupv2::IoStatGauges ::* MetricMemberPtr>
+  requires(std::is_invocable_r_v<std::string, decltype(DiskToColumnLabel), std::string>)
+struct DiskColumn : public CGroupTree::Column {
+  std::string Disk;
+  DiskColumn(std::string disk) : Disk(std::move(disk)) {}
+
+  std::string GetHeaderText() const override { return DiskToColumnLabel(Disk); }
+
+  void RegisterRow(CGroupTree::Row& row) const override {
+    auto [it, inserted] = row.IoMetrics.try_emplace(Disk);
+    auto& ioStats = row.Metrics.GetIoStats();
+    auto itStat = ioStats.find(Disk);
+    if (itStat != ioStats.end()) {
+      (it->second.*RowMemberPtr).Updater =
+          backend::metrics::MakeSubscriber(itStat->second.*MetricMemberPtr, [this, &row](auto metric) {
+            (row.IoMetrics.at(Disk).*RowMemberPtr).Display = utils::DiskSizeToString(metric);
+          });
+    }
+  }
+
+  std::string GetDataText(bool, bool, CGroupTree::Row& row) const override {
+    return (row.IoMetrics.at(Disk).*RowMemberPtr).Display;
+  }
+
+  void Decorate(::ftxui::TableSelection selection) const override { selection.DecorateCells(::ftxui::align_right); }
+};
+
+void CGroupTree::DiscoverColumns(Row& row) {
+  for (const auto& [disk, gauges] : row.Metrics.GetIoStats()) {
+    auto [it, inserted] = _RegisteredDiskColumns.emplace(disk);
+    if (inserted) {
+      _Columns.push_back(
+          std::make_unique<DiskColumn<[](const std::string& disk) { return "RB[" + disk + "]"; },
+                                      &Row::IoMetrics::ReadBytes, &backend::cgroupv2::IoStatGauges::ReadBytes>>(disk));
+      _Columns.push_back(
+          std::make_unique<DiskColumn<[](const std::string& disk) { return "WB[" + disk + "]"; },
+                                      &Row::IoMetrics::WriteBytes, &backend::cgroupv2::IoStatGauges::WriteBytes>>(
+              disk));
+      _Columns.push_back(
+          std::make_unique<DiskColumn<[](const std::string& disk) { return "RC[" + disk + "]"; },
+                                      &Row::IoMetrics::ReadCalls, &backend::cgroupv2::IoStatGauges::ReadCalls>>(disk));
+      _Columns.push_back(
+          std::make_unique<DiskColumn<[](const std::string& disk) { return "WC[" + disk + "]"; },
+                                      &Row::IoMetrics::WriteCalls, &backend::cgroupv2::IoStatGauges::WriteCalls>>(
+              disk));
+      _Columns.push_back(
+          std::make_unique<DiskColumn<[](const std::string& disk) { return "DB[" + disk + "]"; },
+                                      &Row::IoMetrics::DiscardBytes, &backend::cgroupv2::IoStatGauges::DiscardBytes>>(
+              disk));
+      _Columns.push_back(
+          std::make_unique<DiskColumn<[](const std::string& disk) { return "DC[" + disk + "]"; },
+                                      &Row::IoMetrics::DiscardCalls, &backend::cgroupv2::IoStatGauges::DiscardCalls>>(
+              disk));
+    }
+  }
 }
 
 } // namespace frontend::ftxui

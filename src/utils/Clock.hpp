@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <string>
 #include <time.h>
 
 namespace utils {
@@ -15,5 +16,6 @@ std::chrono::system_clock::time_point SystemBootTime();
 std::chrono::system_clock::time_point FromSteadyClock(std::chrono::steady_clock::time_point tp);
 
 std::string FormatDuration(std::chrono::microseconds value);
+std::string FormatTime(std::chrono::system_clock::time_point value);
 
 } // namespace utils

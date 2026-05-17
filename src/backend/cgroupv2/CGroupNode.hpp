@@ -64,8 +64,9 @@ public:
   void OnDirectoryDeleteChild(const std::string& name) override;
 
   void TreeDestruct(); // Free the whole tree. Should only be called from the root node.
+  void NodeDetach();   // Detach the node from the tree.
 
-  const std::filesystem::file_time_type& GetCreateTime() const { return _CreateTime; }
+  std::chrono::system_clock::time_point GetCreateTime() const { return _CreateTime; }
   std::optional<std::reference_wrapper<CGroupNode>> GetParent() const { return _Parent; }
 
   auto GetChildren() const { return _Children | std::views::values; }
@@ -78,10 +79,10 @@ public:
   static constexpr const std::string ROOT_NAME = "root";
 
 private:
-  std::filesystem::file_time_type _CreateTime;
+  std::chrono::system_clock::time_point _CreateTime;
   std::map<const std::string, CGroupNode&> _Children;
 
-  std::filesystem::file_time_type ReadCreateTime() const;
+  std::chrono::system_clock::time_point ReadCreateTime() const;
 };
 
 } // namespace backend::cgroupv2

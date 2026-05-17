@@ -41,7 +41,6 @@ auto UniquePtrToRefWrapper() {
   return std::views::transform([](std::unique_ptr<CGroupNode>& p) -> std::reference_wrapper<CGroupNode> { return *p; });
 }
 
-// TODO: use references instead pointers
 CGroupNode& CGroupManager::MoveCursor(CGroupNode& node, ssize_t offset) {
   if (offset == 0) {
     return node;

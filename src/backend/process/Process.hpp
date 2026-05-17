@@ -28,6 +28,7 @@ public:
   bool Exists() const { return _Exists; }
   void SetExists(bool exists) { _Exists = exists; }
 
+  // TODO: read NS status (NSpid, NSpgid, NStid, etc) from /proc/[pid]/status
   PidType GetPid() const { return _Info.pid; }
   PidType GetPPid() const { return _Info.ppid; }
   std::string GetUser() const;

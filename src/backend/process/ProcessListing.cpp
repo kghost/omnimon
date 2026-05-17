@@ -20,8 +20,6 @@ public:
   }
 };
 
-std::shared_ptr<Process> ProcessListing::GetProcess(PidType pid) const { return _ProcessCache.at(pid); }
-
 void ProcessListing::UpdateList() {
   auto SkipNonePidDir = [](const std::filesystem::directory_entry& entry) {
     if (!entry.is_directory()) {
@@ -57,10 +55,12 @@ void ProcessListing::UpdateList() {
   for (auto& [_, proc] : _ProcessCache) {
     auto ppid = proc->GetPPid();
     if (ppid != 0) {
-      auto parent = GetProcess(proc->GetPPid());
-      proc->SetParent(parent);
-      if (parent) {
-        parent->AddChild(proc);
+      auto it = _ProcessCache.find(ppid);
+      if (it != _ProcessCache.end()) {
+        proc->SetParent(it->second);
+        it->second->AddChild(proc);
+      } else {
+        proc->SetParent(nullptr);
       }
     } else {
       proc->SetParent(nullptr);

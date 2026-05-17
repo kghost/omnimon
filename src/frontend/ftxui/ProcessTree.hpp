@@ -27,27 +27,20 @@ public:
   public:
     std::shared_ptr<backend::process::ProcessMetrics> MetricsPtr;
 
-    // Column associated data, stored as strings cached from updaters
-    std::string StateDisplay;
-    std::string CpuDisplay;
-    std::string MemDisplay;
-    std::string TimeDisplay;
-    std::string DiskReadDisplay;
-    std::string DiskWriteDisplay;
-    std::string DiskAccumulatedDisplay;
-    std::string IODisplay;
-    std::string IOAccumulatedDisplay;
+    struct MetricEntry {
+      std::string Display;
+      std::shared_ptr<backend::metrics::SubscriberBase> Updater;
+    };
 
-    // Updaters for each column
-    std::shared_ptr<backend::metrics::SubscriberBase> StateUpdater;
-    std::shared_ptr<backend::metrics::SubscriberBase> CpuUpdater;
-    std::shared_ptr<backend::metrics::SubscriberBase> MemUpdater;
-    std::shared_ptr<backend::metrics::SubscriberBase> TimeUpdater;
-    std::shared_ptr<backend::metrics::SubscriberBase> DiskReadUpdater;
-    std::shared_ptr<backend::metrics::SubscriberBase> DiskWriteUpdater;
-    std::shared_ptr<backend::metrics::SubscriberBase> DiskAccumulatedUpdater;
-    std::shared_ptr<backend::metrics::SubscriberBase> IOUpdater;
-    std::shared_ptr<backend::metrics::SubscriberBase> IOAccumulatedUpdater;
+    MetricEntry State;
+    MetricEntry Cpu;
+    MetricEntry Mem;
+    MetricEntry Time;
+    MetricEntry DiskRead;
+    MetricEntry DiskWrite;
+    MetricEntry DiskAccumulated;
+    MetricEntry Io;
+    MetricEntry IoAccumulated;
   };
   class Column {
   public:

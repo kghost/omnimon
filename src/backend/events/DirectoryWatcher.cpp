@@ -64,12 +64,10 @@ void DirectoryWatcher::OnWrite() { throw std::runtime_error("DirectoryWatcher::O
 
 void DirectoryWatcher::OnInotifyEvent(struct inotify_event event, std::string name) {
   if (event.mask & (IN_CREATE | IN_MOVED_TO)) {
-    auto descriptor = _WatchMap.at(event.wd);
-    descriptor.get().OnDirectoryCreateChild(name);
+    _WatchMap.at(event.wd).get().OnDirectoryCreateChild(name);
   }
   if (event.mask & (IN_DELETE | IN_MOVED_FROM)) {
-    auto descriptor = _WatchMap.at(event.wd);
-    descriptor.get().OnDirectoryDeleteChild(name);
+    _WatchMap.at(event.wd).get().OnDirectoryDeleteChild(name);
   }
 }
 

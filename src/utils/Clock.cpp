@@ -65,4 +65,17 @@ std::string FormatDuration(std::chrono::microseconds value) {
   }
 }
 
+std::string FormatTime(std::chrono::system_clock::time_point value) {
+  auto diff = std::chrono::system_clock::now() - value;
+  auto local = std::chrono::zoned_time{std::chrono::current_zone(), value};
+
+  if (diff < std::chrono::days(1)) {
+    return std::format("{:%H:%M}", local);
+  } else if (diff < std::chrono::years(1)) {
+    return std::format("{:%b%d}", local);
+  } else {
+    return std::format("{:%Y}", local);
+  }
+}
+
 } // namespace utils

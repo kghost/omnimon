@@ -16,7 +16,6 @@ public:
   ProcessListing() = default;
   ~ProcessListing() = default;
 
-  std::shared_ptr<Process> GetProcess(PidType pid) const;
   void UpdateList();
 
   std::shared_ptr<Process> MoveCursor(std::shared_ptr<Process> current, ssize_t offset);

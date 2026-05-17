@@ -38,17 +38,27 @@ public:
     backend::cgroupv2::CGroupMetrics Metrics;
     std::shared_ptr<backend::metrics::SubscriberBase> OnNodeRemoving;
 
-    std::string MemoryDisplay;
-    std::string PidsDisplay;
-    std::string CpuUsageDisplay;
-    std::string CpuUserDisplay;
-    std::string CpuSystemDisplay;
+    struct MetricEntry {
+      std::string Display;
+      std::shared_ptr<backend::metrics::SubscriberBase> Updater;
+    };
 
-    std::shared_ptr<backend::metrics::SubscriberBase> MemoryUpdater;
-    std::shared_ptr<backend::metrics::SubscriberBase> PidsUpdater;
-    std::shared_ptr<backend::metrics::SubscriberBase> CpuUsageUpdater;
-    std::shared_ptr<backend::metrics::SubscriberBase> CpuUserUpdater;
-    std::shared_ptr<backend::metrics::SubscriberBase> CpuSystemUpdater;
+    MetricEntry Pids;
+    MetricEntry Memory;
+    MetricEntry CpuUsage;
+    MetricEntry CpuUser;
+    MetricEntry CpuSystem;
+
+    struct IoMetrics {
+      MetricEntry ReadBytes;
+      MetricEntry WriteBytes;
+      MetricEntry ReadCalls;
+      MetricEntry WriteCalls;
+      MetricEntry DiscardBytes;
+      MetricEntry DiscardCalls;
+    };
+
+    std::map<std::string, IoMetrics> IoMetrics;
 
     void UpdateMetrics();
   };
@@ -60,6 +70,8 @@ public:
     virtual void RegisterRow(Row& row) const = 0;
     virtual std::string GetDataText(bool isRowSelected, bool isColumnSelected, Row& row) const = 0;
     virtual void Decorate(::ftxui::TableSelection selection) const = 0;
+
+    bool IsShown = true;
   };
 
   void OnRowRemoving(Row& row);
@@ -75,10 +87,15 @@ private:
   std::list<std::unique_ptr<Row>>::iterator _CursorRow;
   std::list<std::unique_ptr<Column>>::iterator _CursorColumn;
   std::shared_ptr<backend::metrics::SubscriberBase> _TickUpdater;
+  std::set<std::string> _RegisteredDiskColumns;
 
   void OnTableSizeChange(::ftxui::Box box);
   void Update();
   void MoveCursorAndDraw(ssize_t offset);
+
+  void DiscoverColumns(Row& row);
+  // TODO: get range to all column
+  // TODO: get range to column of a disk
 
   void UpdateData(backend::cgroupv2::CGroupNode& selected,
                   std::vector<std::reference_wrapper<backend::cgroupv2::CGroupNode>> nodes);

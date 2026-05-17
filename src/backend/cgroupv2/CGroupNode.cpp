@@ -34,8 +34,10 @@ void CGroupNode::OnDirectoryCreateChild(const std::string& name) {
 }
 
 void CGroupNode::OnDirectoryDeleteChild(const std::string& name) {
-  assert(_Children.contains(name));
-  _Children.erase(name);
+  auto it = _Children.find(name);
+  assert(it != _Children.end());
+  it->second.NodeDetach();
+  _Children.erase(it);
 }
 
 void CGroupNode::InitializeChildren() {
@@ -64,20 +66,23 @@ void CGroupNode::TreeDestruct() {
     child.TreeDestruct();
   }
   _Children.clear();
+  NodeDetach();
+}
 
-  assert(!_RemovingPublisher->GetValue() && "RemoveNodeFromTree should only be called once for each node");
+void CGroupNode::NodeDetach() {
+  assert(!_RemovingPublisher->GetValue() && "NodeDetach should only be called once for each node");
   assert(_Children.empty() && "CGroup node should have no children when it is removed from the tree");
   auto path = GetPath();
   _RemovingPublisher->Update(true);
   _Manager.OnNodePreRemove(path);
 }
 
-std::filesystem::file_time_type CGroupNode::ReadCreateTime() const {
+std::chrono::system_clock::time_point CGroupNode::ReadCreateTime() const {
   auto path = GetPath();
   try {
-    return std::filesystem::last_write_time(path);
+    return std::chrono::clock_cast<std::chrono::system_clock>(std::filesystem::last_write_time(path));
   } catch (const std::filesystem::filesystem_error&) {
-    return std::filesystem::file_time_type::min();
+    return std::chrono::system_clock::time_point::min();
   }
 }
 
