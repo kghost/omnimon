@@ -14,6 +14,7 @@
 #include "../../backend/events/Events.hpp"
 #include "../../backend/metrics/Binding.hpp"
 #include "../../backend/metrics/SimplePublisher.hpp"
+#include "../../utils/Range.hpp"
 #include "TabSelector.hpp"
 
 namespace frontend::ftxui {
@@ -32,6 +33,11 @@ public:
   public:
     explicit Row(CGroupTree& tree, backend::cgroupv2::CGroupNode& node);
     ~Row();
+
+    Row(const Row&) = delete;
+    Row(Row&&) = delete;
+    Row& operator=(const Row&) = delete;
+    Row& operator=(Row&&) = delete;
 
     CGroupTree& _Tree;
     backend::cgroupv2::CGroupNode& Node;
@@ -60,12 +66,19 @@ public:
 
     std::map<std::string, IoMetrics> IoMetrics;
 
-    void UpdateMetrics();
+    void UpdateMetrics(CGroupTree& tree);
   };
 
   class Column {
   public:
+    explicit Column() = default;
     virtual ~Column() = default;
+
+    Column(const Column&) = delete;
+    Column(Column&&) = delete;
+    Column& operator=(const Column&) = delete;
+    Column& operator=(Column&&) = delete;
+
     virtual std::string GetHeaderText() const = 0;
     virtual void RegisterRow(Row& row) const = 0;
     virtual std::string GetDataText(bool isRowSelected, bool isColumnSelected, Row& row) const = 0;
@@ -77,31 +90,43 @@ public:
   void OnRowRemoving(Row& row);
 
 private:
+  class DiskColumnSet {
+  public:
+    explicit DiskColumnSet(const std::string& disk);
+    auto GetColumns() { return std::views::all(_Columns); }
+
+  private:
+    const std::string _Disk;
+    std::array<std::unique_ptr<Column>, 6> _Columns;
+  };
+
   std::function<void()> _Refresh;
 
   static constexpr const ssize_t HeaderHeight = 1;
   ssize_t _TableCapacity = 0;
   backend::cgroupv2::CGroupManager _Manager;
   std::list<std::unique_ptr<Row>> _Rows;
-  std::list<std::unique_ptr<Column>> _Columns;
   std::list<std::unique_ptr<Row>>::iterator _CursorRow;
-  std::list<std::unique_ptr<Column>>::iterator _CursorColumn;
+  std::array<std::unique_ptr<Column>, 8> _Columns;
+  std::map<std::string, DiskColumnSet> _IoColumns;
   std::shared_ptr<backend::metrics::SubscriberBase> _TickUpdater;
-  std::set<std::string> _RegisteredDiskColumns;
 
   void OnTableSizeChange(::ftxui::Box box);
   void Update();
   void MoveCursorAndDraw(ssize_t offset);
 
-  void DiscoverColumns(Row& row);
-  // TODO: get range to all column
-  // TODO: get range to column of a disk
-
   void UpdateData(backend::cgroupv2::CGroupNode& selected,
                   std::vector<std::reference_wrapper<backend::cgroupv2::CGroupNode>> nodes);
   void RemoveData();
 
-  std::list<std::unique_ptr<Column>> CreateDefaultColumns();
+  std::array<std::unique_ptr<Column>, 8> CreateDefaultColumns();
+  void DiscoverColumns(Row& row);
+  auto GetAllColumns() {
+    return utils::concat<std::unique_ptr<Column>&>(
+        std::views::all(_Columns),
+        _IoColumns | std::views::transform([](auto& pair) { return pair.second.GetColumns(); }) | std::views::join);
+  }
+  auto GetDiskColumns(const std::string& disk) { return _IoColumns.at(disk).GetColumns(); }
 };
 
 } // namespace frontend::ftxui

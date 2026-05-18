@@ -49,25 +49,34 @@ std::chrono::system_clock::time_point SystemBootTime() {
 }
 
 std::chrono::system_clock::time_point FromSteadyClock(std::chrono::steady_clock::time_point tp) {
-  return SystemBootTime() + (tp - JiffyBootTime());
+  auto diff = std::chrono::duration_cast<std::chrono::system_clock::duration>(tp - JiffyBootTime());
+  return SystemBootTime() + diff;
 }
 
 std::string FormatDuration(std::chrono::microseconds value) {
+  auto milli = std::chrono::duration_cast<std::chrono::milliseconds>(value);
   if (value < std::chrono::minutes(1)) {
-    return std::format("{:%S}", value);
+    return std::format("{:%S}", milli);
   } else if (value < std::chrono::hours(1)) {
-    return std::format("{:%M:%S}", value);
+    return std::format("{:%M:%S}", milli);
   } else if (value < std::chrono::days(1)) {
-    return std::format("{:%H:%M:%S}", value);
+    return std::format("{:%H:%M:%S}", milli);
+  } else if (value < std::chrono::years(1)) {
+    auto days = std::chrono::duration_cast<std::chrono::days>(milli).count();
+    milli -= std::chrono::days(days);
+    return std::format("{:d}d{:%H:%M:%S}", days, milli);
   } else {
-    auto days = std::chrono::duration_cast<std::chrono::days>(value).count();
-    return std::format("{:d}d{:%H:%M:%S}", days, value);
+    auto years = std::chrono::duration_cast<std::chrono::years>(milli).count();
+    milli -= std::chrono::years(years);
+    auto days = std::chrono::duration_cast<std::chrono::days>(milli).count();
+    milli -= std::chrono::days(days);
+    return std::format("{:d}y{:d}d{:%H:%M:%S}", years, days, milli);
   }
 }
 
 std::string FormatTime(std::chrono::system_clock::time_point value) {
   auto diff = std::chrono::system_clock::now() - value;
-  auto local = std::chrono::zoned_time{std::chrono::current_zone(), value};
+  auto local = std::chrono::current_zone()->to_local(value);
 
   if (diff < std::chrono::days(1)) {
     return std::format("{:%H:%M}", local);

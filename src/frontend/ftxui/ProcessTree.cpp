@@ -4,6 +4,7 @@
 #include <cassert>
 #include <ftxui/dom/elements.hpp>
 #include <ftxui/dom/table.hpp>
+#include <ranges>
 
 #include "../../backend/process/ProcessMetrics.hpp"
 #include "ProcessColumns.hpp"

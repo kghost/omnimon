@@ -74,13 +74,14 @@ void CGroupNode::NodeDetach() {
   assert(_Children.empty() && "CGroup node should have no children when it is removed from the tree");
   auto path = GetPath();
   _RemovingPublisher->Update(true);
-  _Manager.OnNodePreRemove(path);
+  _Manager.OnNodePreRemove(*this);
 }
 
 std::chrono::system_clock::time_point CGroupNode::ReadCreateTime() const {
   auto path = GetPath();
   try {
-    return std::chrono::clock_cast<std::chrono::system_clock>(std::filesystem::last_write_time(path));
+    auto sys = std::chrono::file_clock::to_sys(std::filesystem::last_write_time(path));
+    return std::chrono::time_point_cast<std::chrono::system_clock::duration>(sys);
   } catch (const std::filesystem::filesystem_error&) {
     return std::chrono::system_clock::time_point::min();
   }

@@ -43,7 +43,7 @@ public:
   static std::shared_ptr<TabChoice> GetDefaultTab();
 
   explicit TabSelector(OnTabSelected onTabSelected, OnTabSelectorClosed onTabSelectorClosed,
-                       const std::string& currentTabName = "");
+                       const std::string& currentTabName);
   ~TabSelector() override = default;
 
   bool OnEvent(::ftxui::Event event) override;

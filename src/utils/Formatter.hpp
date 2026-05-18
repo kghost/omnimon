@@ -1,8 +1,7 @@
 #pragma once
 
 #include <stdint.h>
-
-#include "StringUtils.hpp"
+#include <string>
 
 namespace utils {
 

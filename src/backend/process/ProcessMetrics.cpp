@@ -8,6 +8,7 @@
 #include <sstream>
 #include <string>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include "../../utils/Error.hpp"
 #include "../metrics/SharedGauge.hpp"

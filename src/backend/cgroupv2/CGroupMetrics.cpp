@@ -5,6 +5,7 @@
 #include <sstream>
 #include <string>
 
+#include "../../utils/LazyInitializer.hpp"
 #include "CGroupNode.hpp"
 
 namespace backend::cgroupv2 {
@@ -168,20 +169,14 @@ void CGroupMetrics::ReadFromDirectory() {
   }
 
   for (const auto& [disk, stat] : ReadIoStatFile(path / "io.stat")) {
-    class LazyIoStatGauges {
-    public:
-      explicit LazyIoStatGauges(CGroupMetrics& parent) : _Parent(parent) {}
-      operator IoStatGauges() const {
-        return IoStatGauges{
-            std::make_shared<metrics::SharedGauge>(_Parent), std::make_shared<metrics::SharedGauge>(_Parent),
-            std::make_shared<metrics::SharedGauge>(_Parent), std::make_shared<metrics::SharedGauge>(_Parent),
-            std::make_shared<metrics::SharedGauge>(_Parent), std::make_shared<metrics::SharedGauge>(_Parent)};
-      }
-
-    private:
-      CGroupMetrics& _Parent;
-    };
-    auto [it, isNew] = _IoStats.try_emplace(disk, LazyIoStatGauges(*this));
+    auto [it, isNew] = _IoStats.try_emplace(disk, utils::Lazy<IoStatGauges>([this] {
+                                              return IoStatGauges{std::make_shared<metrics::SharedGauge>(*this),
+                                                                  std::make_shared<metrics::SharedGauge>(*this),
+                                                                  std::make_shared<metrics::SharedGauge>(*this),
+                                                                  std::make_shared<metrics::SharedGauge>(*this),
+                                                                  std::make_shared<metrics::SharedGauge>(*this),
+                                                                  std::make_shared<metrics::SharedGauge>(*this)};
+                                            }));
     IoStatGauges& gauges = it->second;
     gauges.ReadBytes->SetValue(stat.rbytes);
     gauges.WriteBytes->SetValue(stat.wbytes);

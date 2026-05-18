@@ -46,7 +46,7 @@ public:
 TabSelector::TabSelector(TabSelector::OnTabSelected onTabSelected, TabSelector::OnTabSelectorClosed onTabSelectorClosed,
                          const std::string& currentTabName)
     : _OnTabSelected(std::move(onTabSelected)), _OnTabSelectorClosed(std::move(onTabSelectorClosed)) {
-  _Tabs.push_back(GetDefaultTab());
+  _Tabs.push_back(std::make_shared<ProcessTreeTabChoice>());
   _Tabs.push_back(std::make_shared<CGroupTabChoice>());
   _Tabs.push_back(std::make_shared<PlaceholderTabChoice>());
 
@@ -55,7 +55,7 @@ TabSelector::TabSelector(TabSelector::OnTabSelected onTabSelected, TabSelector::
   assert(_Cursor != _Tabs.end());
 }
 
-std::shared_ptr<TabChoice> TabSelector::GetDefaultTab() { return std::make_shared<ProcessTreeTabChoice>(); }
+std::shared_ptr<TabChoice> TabSelector::GetDefaultTab() { return std::make_shared<CGroupTabChoice>(); }
 
 bool TabSelector::OnEvent(::ftxui::Event event) {
   using namespace ::ftxui;

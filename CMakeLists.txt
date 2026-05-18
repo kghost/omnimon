@@ -18,7 +18,9 @@ endif()
 set(FTXUI_BUILD_EXAMPLES OFF)
 set(FTXUI_ENABLE_INSTALL OFF)
 
-#add_compile_options("-stdlib=libc++" "-fexperimental-library")
+# add_compile_definitions(_LIBCPP_ENABLE_EXPERIMENTAL)
+# add_compile_options("-stdlib=libc++" "-fexperimental-library")
+# add_link_options("-stdlib=libc++" "-lc++experimental")
 
 execute_process(
   COMMAND uname -m
