@@ -17,6 +17,11 @@ const std::filesystem::path ProcessManager::PROC_PATH{"/proc"};
 
 ProcessManager::ProcessManager()
     : TreeManagerMixin<ProcessManager, Process>(ProcessOrderByHierarchical(ProcessOrderByPid())) {}
+ProcessManager::~ProcessManager() {
+  for (auto& [_, proc] : _ProcessCache) {
+    proc->DetachProcess();
+  }
+}
 
 std::optional<std::reference_wrapper<Process>> ProcessManager::GetProcess(PidType pid) {
   auto it = _ProcessCache.find(pid);

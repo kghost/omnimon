@@ -7,7 +7,6 @@
 #include <string>
 #include <vector>
 
-#include "../../backend/events/Events.hpp"
 #include "FtxuiView.hpp"
 
 namespace backend::metrics {
@@ -26,13 +25,13 @@ public:
   virtual std::string GetTabName() const = 0;
 };
 
+class OmniMonInterface;
+
 class TabChoice {
 public:
   virtual ~TabChoice() = default;
   virtual std::string GetName() const = 0;
-  virtual std::shared_ptr<FtxuiTabView> CreateView(backend::events::EventLoop& loop,
-                                                   std::shared_ptr<backend::metrics::SimplePublisher<int>> tick,
-                                                   std::function<void()> refresh) const = 0;
+  virtual std::unique_ptr<FtxuiTabView> CreateView(OmniMonInterface& interface) const = 0;
 };
 
 class TabSelector : public FtxuiView {

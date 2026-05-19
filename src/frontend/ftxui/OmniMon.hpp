@@ -7,10 +7,12 @@
 #include <ftxui/component/screen_interactive.hpp>
 #include <memory>
 #include <optional>
+#include <string>
 
 #include "../../backend/events/Events.hpp"
 #include "../../backend/metrics/SimplePublisher.hpp"
-#include "FtxuiView.hpp"
+#include "DebugWindow.hpp"
+#include "OmniMonInterface.hpp"
 #include "Options.hpp"
 #include "TabSelector.hpp"
 
@@ -75,17 +77,20 @@ private:
   OmniMon& _OmniMon;
 };
 
-class OmniMon {
+class OmniMon : public OmniMonInterface {
 public:
   explicit OmniMon();
-  ~OmniMon() = default;
+  ~OmniMon() override = default;
 
   void HandleWinChangeSignal();
   void OnStdInRead();
-
-  void ScheduleRefresh();
   void TimerUpdate();
   void Refresh();
+
+  void ScheduleRefresh() override;
+  void Debug(std::string msg, DebugWindow::DebugLevel level = DebugWindow::DebugLevel::Info) override;
+  backend::events::EventLoop& GetLoop() override;
+  std::shared_ptr<backend::metrics::SubscriberBase> OnTickUpdate(std::function<void(int)> callback) override;
 
   void Run();
   void Stop();
@@ -102,7 +107,8 @@ private:
 
   ::ftxui::App _Screen;
   std::unique_ptr<::ftxui::Loop> _FtxuiLoop;
-  std::shared_ptr<FtxuiTabView> _ActiveView;
+  std::unique_ptr<DebugWindow> _DebugWindow;
+  std::unique_ptr<FtxuiTabView> _ActiveView;
   std::optional<std::unique_ptr<TabSelector>> _TabSelector;
 };
 

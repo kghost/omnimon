@@ -11,25 +11,23 @@
 #include "../../backend/cgroupv2/CGroupManager.hpp"
 #include "../../backend/cgroupv2/CGroupMetrics.hpp"
 #include "../../backend/cgroupv2/CGroupNode.hpp"
-#include "../../backend/events/Events.hpp"
 #include "../../backend/metrics/Binding.hpp"
-#include "../../backend/metrics/SimplePublisher.hpp"
 #include "../../utils/Range.hpp"
+#include "OmniMonInterface.hpp"
 #include "TabSelector.hpp"
 
 namespace frontend::ftxui {
 
 class CGroupTree : public FtxuiTabView {
 public:
-  explicit CGroupTree(backend::events::EventLoop& loop, std::shared_ptr<backend::metrics::SimplePublisher<int>> tick,
-                      std::function<void()> refresh);
+  explicit CGroupTree(OmniMonInterface& interface);
   ~CGroupTree() override = default;
 
   std::string GetTabName() const override;
   bool OnEvent(::ftxui::Event event) override;
   ::ftxui::Element Render() override;
 
-  class Row {
+  class Row final {
   public:
     explicit Row(CGroupTree& tree, backend::cgroupv2::CGroupNode& node);
     ~Row();
@@ -81,7 +79,7 @@ public:
 
     virtual std::string GetHeaderText() const = 0;
     virtual void RegisterRow(Row& row) const = 0;
-    virtual std::string GetDataText(bool isRowSelected, bool isColumnSelected, Row& row) const = 0;
+    virtual std::string GetDataText(bool isRowSelected, Row& row) const = 0;
     virtual void Decorate(::ftxui::TableSelection selection) const = 0;
 
     bool IsShown = true;
@@ -100,15 +98,18 @@ private:
     std::array<std::unique_ptr<Column>, 6> _Columns;
   };
 
-  std::function<void()> _Refresh;
+  OmniMonInterface& _Interface;
 
   static constexpr const ssize_t HeaderHeight = 1;
   ssize_t _TableCapacity = 0;
   backend::cgroupv2::CGroupManager _Manager;
-  std::list<std::unique_ptr<Row>> _Rows;
-  std::list<std::unique_ptr<Row>>::iterator _CursorRow;
+
+  std::list<Row> _Rows;
+  std::list<Row>::iterator _CursorRow;
+
   std::array<std::unique_ptr<Column>, 8> _Columns;
   std::map<std::string, DiskColumnSet> _IoColumns;
+
   std::shared_ptr<backend::metrics::SubscriberBase> _TickUpdater;
 
   void OnTableSizeChange(::ftxui::Box box);

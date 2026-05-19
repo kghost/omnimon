@@ -1,10 +1,11 @@
 #include "TabSelector.hpp"
 
 #include <cassert>
-#include <ranges>
+#include <memory>
 #include <vector>
 
 #include "CGroupTree.hpp"
+#include "OmniMonInterface.hpp"
 #include "PlaceholderTab.hpp"
 #include "ProcessTree.hpp"
 
@@ -14,10 +15,8 @@ class ProcessTreeTabChoice : public TabChoice {
 public:
   std::string GetName() const override { return kProcessTreeTabName; }
 
-  std::shared_ptr<FtxuiTabView> CreateView(backend::events::EventLoop& loop,
-                                           std::shared_ptr<backend::metrics::SimplePublisher<int>> tick,
-                                           std::function<void()> refresh) const override {
-    return std::make_shared<ProcessTree>(tick, refresh);
+  std::unique_ptr<FtxuiTabView> CreateView(OmniMonInterface& interface) const override {
+    return std::make_unique<ProcessTree>(interface);
   }
 };
 
@@ -25,10 +24,8 @@ class CGroupTabChoice : public TabChoice {
 public:
   std::string GetName() const override { return kCGroupV2TabName; }
 
-  std::shared_ptr<FtxuiTabView> CreateView(backend::events::EventLoop& loop,
-                                           std::shared_ptr<backend::metrics::SimplePublisher<int>> tick,
-                                           std::function<void()> refresh) const override {
-    return std::make_shared<CGroupTree>(loop, tick, refresh);
+  std::unique_ptr<FtxuiTabView> CreateView(OmniMonInterface& interface) const override {
+    return std::make_unique<CGroupTree>(interface);
   }
 };
 
@@ -36,10 +33,8 @@ class PlaceholderTabChoice : public TabChoice {
 public:
   std::string GetName() const override { return kPlaceholderTabName; }
 
-  std::shared_ptr<FtxuiTabView> CreateView(backend::events::EventLoop& loop,
-                                           std::shared_ptr<backend::metrics::SimplePublisher<int>> tick,
-                                           std::function<void()> refresh) const override {
-    return std::make_shared<PlaceholderTab>();
+  std::unique_ptr<FtxuiTabView> CreateView(OmniMonInterface& interface) const override {
+    return std::make_unique<PlaceholderTab>();
   }
 };
 
@@ -83,15 +78,26 @@ bool TabSelector::OnEvent(::ftxui::Event event) {
 
 ::ftxui::Element TabSelector::Render() {
   using namespace ::ftxui;
-  return vbox(_Tabs | std::views::transform([&](const std::shared_ptr<TabChoice>& tab) {
-                Element node = text(tab->GetName());
-                if (tab == *_Cursor) {
-                  node = node | inverted | bold;
-                }
-                return node | center;
-              }) |
-              std::ranges::to<std::vector<Element>>()) |
-         clear_under | border | center;
+
+  Elements tabElements;
+  tabElements.push_back(text(""));
+  for (const auto& tab : _Tabs) {
+    Element node = text(tab->GetName());
+    if (tab == *_Cursor) {
+      node = node | inverted | bold;
+    }
+    tabElements.push_back(node | center);
+  }
+  tabElements.push_back(text(""));
+
+  Element title = hbox({text("Select Tab") | bold | color(Color::Yellow)});
+
+  Element footer = hbox({text(" [Tab/Esc] Close ") | bold | color(Color::Green), separatorLight(),
+                         text(" [↑/↓] Move ") | bold | color(Color::Green), separatorLight(),
+                         text(" [Enter] Select ") | bold | color(Color::Green)});
+
+  return window(title, vbox({vbox(std::move(tabElements)), separatorLight(), footer})) | size(WIDTH, EQUAL, 60) |
+         clear_under | center;
 }
 
 } // namespace frontend::ftxui

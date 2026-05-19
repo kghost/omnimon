@@ -7,26 +7,31 @@
 #include <memory>
 
 #include "../../backend/metrics/Binding.hpp"
-#include "../../backend/metrics/SimplePublisher.hpp"
 #include "../../backend/process/Process.hpp"
 #include "../../backend/process/ProcessManager.hpp"
 #include "../../backend/process/ProcessMetrics.hpp"
+#include "OmniMonInterface.hpp"
 #include "TabSelector.hpp"
 
 namespace frontend::ftxui {
 
 class ProcessTree : public FtxuiTabView {
 public:
-  explicit ProcessTree(std::shared_ptr<backend::metrics::SimplePublisher<int>> tick, std::function<void()> refresh);
+  explicit ProcessTree(OmniMonInterface& interface);
   ~ProcessTree() override = default;
 
   std::string GetTabName() const override;
   bool OnEvent(::ftxui::Event event) override;
   ::ftxui::Element Render() override;
 
-  class Row {
+  class Row final {
   public:
     explicit Row(ProcessTree& tree, backend::process::Process& process);
+
+    Row(const Row&) = delete;
+    Row& operator=(const Row&) = delete;
+    Row(Row&&) noexcept = delete;
+    Row& operator=(Row&&) noexcept = delete;
 
     ProcessTree& Tree;
     std::optional<std::reference_wrapper<backend::process::Process>> Process;
@@ -53,22 +58,24 @@ public:
     virtual ~Column() = default;
     virtual std::string GetHeaderText() const = 0;
     virtual void RegisterRow(Row& row) const = 0;
-    virtual std::string GetDataText(bool isRowSelected, bool isColumnSelected, Row& row) const = 0;
+    virtual std::string GetDataText(bool isRowSelected, Row& row) const = 0;
     virtual void Decorate(::ftxui::TableSelection selection) const = 0;
   };
 
   void OnNodeRemoving(Row& row);
 
 private:
-  std::function<void()> _Refresh;
+  OmniMonInterface& _Interface;
 
   static constexpr const ssize_t HeaderHeight = 1; // Number of rows reserved for the header
   ssize_t _TableCapacity = 0;                      // Current height of the table (excluding header)
   backend::process::ProcessManager _ProcessManager;
-  std::list<std::unique_ptr<Row>> _Rows;                      // Row definitions (e.g., which process to display)
-  std::list<std::unique_ptr<Column>> _Columns;                // Column definitions (e.g., width, header text)
-  std::list<std::unique_ptr<Row>>::iterator _CursorRow;       // Current position of the cursor in the rows
-  std::list<std::unique_ptr<Column>>::iterator _CursorColumn; // Current position of the cursor in the columns
+
+  std::list<Row> _Rows;                // Row definitions (e.g., which process to display)
+  std::list<Row>::iterator _CursorRow; // Current position of the cursor in the rows
+
+  std::list<std::unique_ptr<Column>> _Columns; // Column definitions (e.g., width, header text)
+
   std::shared_ptr<backend::metrics::SubscriberBase> _TickUpdater;
 
   void OnTableSizeChange(::ftxui::Box box);

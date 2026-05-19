@@ -7,7 +7,6 @@
 
 #include "../../utils/BackendTree.hpp"
 #include "../metrics/SharedGauge.hpp"
-#include "../metrics/SimplePublisher.hpp"
 #include "ProcessManager.hpp"
 #include "Types.hpp"
 

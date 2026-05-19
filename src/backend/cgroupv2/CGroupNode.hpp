@@ -5,11 +5,9 @@
 #include <memory>
 #include <ranges>
 #include <string>
-#include <utility>
 
 #include "../../utils/BackendTree.hpp"
 #include "../events/DirectoryWatcher.hpp"
-#include "../metrics/SimplePublisher.hpp"
 
 namespace backend::cgroupv2 {
 

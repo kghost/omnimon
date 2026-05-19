@@ -1,8 +1,6 @@
 #include "CGroupNode.hpp"
 
-#include <algorithm>
 #include <cassert>
-#include <ranges>
 
 #include "CGroupManager.hpp"
 

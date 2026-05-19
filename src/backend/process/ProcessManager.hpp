@@ -17,7 +17,7 @@ public:
   static const std::filesystem::path PROC_PATH;
 
   explicit ProcessManager();
-  ~ProcessManager() = default;
+  ~ProcessManager();
 
   std::optional<std::reference_wrapper<Process>> GetProcess(PidType pid);
 

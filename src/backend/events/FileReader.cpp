@@ -1,9 +1,8 @@
 #include "FileReader.hpp"
 
-#include <algorithm>
 #include <cassert>
 #include <errno.h>
-#include <ranges>
+#include <span>
 #include <system_error>
 #include <unistd.h>
 

@@ -22,7 +22,7 @@ std::string ColumnCursor::GetHeaderText() const { return "≡"; }
 
 void ColumnCursor::RegisterRow(ProcessTree::Row& row) const {}
 
-std::string ColumnCursor::GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const {
+std::string ColumnCursor::GetDataText(bool isRowSelected, ProcessTree::Row& row) const {
   return isRowSelected ? "⮚" : " ";
 }
 
@@ -38,7 +38,7 @@ std::string ColumnPid::GetHeaderText() const { return "PID"; }
 
 void ColumnPid::RegisterRow(ProcessTree::Row& row) const {}
 
-std::string ColumnPid::GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const {
+std::string ColumnPid::GetDataText(bool isRowSelected, ProcessTree::Row& row) const {
   return std::format("{}", row.Process.value().get().GetPid());
 }
 
@@ -56,9 +56,7 @@ void ColumnState::RegisterRow(ProcessTree::Row& row) const {
   });
 }
 
-std::string ColumnState::GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const {
-  return row.State.Display;
-}
+std::string ColumnState::GetDataText(bool isRowSelected, ProcessTree::Row& row) const { return row.State.Display; }
 
 void ColumnState::Decorate(::ftxui::TableSelection selection) const {}
 
@@ -70,7 +68,7 @@ std::string ColumnUser::GetHeaderText() const { return "User"; }
 
 void ColumnUser::RegisterRow(ProcessTree::Row& row) const {}
 
-std::string ColumnUser::GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const {
+std::string ColumnUser::GetDataText(bool isRowSelected, ProcessTree::Row& row) const {
   return row.Process.value().get().GetUser();
 }
 
@@ -93,9 +91,7 @@ void ColumnCpu::RegisterRow(ProcessTree::Row& row) const {
       [&row](auto cpu) { row.Cpu.Display = std::format("{:.1f}", cpu / 100.0f); });
 }
 
-std::string ColumnCpu::GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const {
-  return row.Cpu.Display;
-}
+std::string ColumnCpu::GetDataText(bool isRowSelected, ProcessTree::Row& row) const { return row.Cpu.Display; }
 
 void ColumnCpu::Decorate(::ftxui::TableSelection selection) const { selection.DecorateCells(::ftxui::align_right); }
 
@@ -112,9 +108,7 @@ void ColumnMem::RegisterRow(ProcessTree::Row& row) const {
       [&row](auto mem) { row.Mem.Display = std::format("{:.1f}", mem / 100.0f); });
 }
 
-std::string ColumnMem::GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const {
-  return row.Mem.Display;
-}
+std::string ColumnMem::GetDataText(bool isRowSelected, ProcessTree::Row& row) const { return row.Mem.Display; }
 
 void ColumnMem::Decorate(::ftxui::TableSelection selection) const { selection.DecorateCells(::ftxui::align_right); }
 
@@ -133,9 +127,7 @@ void ColumnTime::RegisterRow(ProcessTree::Row& row) const {
       });
 }
 
-std::string ColumnTime::GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const {
-  return row.Time.Display;
-}
+std::string ColumnTime::GetDataText(bool isRowSelected, ProcessTree::Row& row) const { return row.Time.Display; }
 
 void ColumnTime::Decorate(::ftxui::TableSelection selection) const {}
 
@@ -152,7 +144,7 @@ void ColumnDiskRead::RegisterRow(ProcessTree::Row& row) const {
                                        [&row](auto metric) { row.DiskRead.Display = utils::DiskSizeToString(metric); });
 }
 
-std::string ColumnDiskRead::GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const {
+std::string ColumnDiskRead::GetDataText(bool isRowSelected, ProcessTree::Row& row) const {
   return row.DiskRead.Display;
 }
 
@@ -173,7 +165,7 @@ void ColumnDiskWrite::RegisterRow(ProcessTree::Row& row) const {
       [&row](auto metric) { row.DiskWrite.Display = utils::DiskSizeToString(metric); });
 }
 
-std::string ColumnDiskWrite::GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const {
+std::string ColumnDiskWrite::GetDataText(bool isRowSelected, ProcessTree::Row& row) const {
   return row.DiskWrite.Display;
 }
 
@@ -194,7 +186,7 @@ void ColumnDiskAccumulated::RegisterRow(ProcessTree::Row& row) const {
       [&row](auto metric) { row.DiskAccumulated.Display = utils::DiskSizeToString(metric); });
 }
 
-std::string ColumnDiskAccumulated::GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const {
+std::string ColumnDiskAccumulated::GetDataText(bool isRowSelected, ProcessTree::Row& row) const {
   return row.DiskAccumulated.Display;
 }
 
@@ -217,9 +209,7 @@ void ColumnIO::RegisterRow(ProcessTree::Row& row) const {
       [&row](auto metric) { row.Io.Display = utils::DiskSizeToString(metric); });
 }
 
-std::string ColumnIO::GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const {
-  return row.Io.Display;
-}
+std::string ColumnIO::GetDataText(bool isRowSelected, ProcessTree::Row& row) const { return row.Io.Display; }
 
 void ColumnIO::Decorate(::ftxui::TableSelection selection) const { selection.DecorateCells(::ftxui::align_right); }
 
@@ -236,7 +226,7 @@ void ColumnIOAccumulated::RegisterRow(ProcessTree::Row& row) const {
       [&row](auto metric) { row.IoAccumulated.Display = utils::DiskSizeToString(metric); });
 }
 
-std::string ColumnIOAccumulated::GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const {
+std::string ColumnIOAccumulated::GetDataText(bool isRowSelected, ProcessTree::Row& row) const {
   return row.IoAccumulated.Display;
 }
 
@@ -252,7 +242,7 @@ std::string ColumnStart::GetHeaderText() const { return "Start"; }
 
 void ColumnStart::RegisterRow(ProcessTree::Row& row) const {}
 
-std::string ColumnStart::GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const {
+std::string ColumnStart::GetDataText(bool isRowSelected, ProcessTree::Row& row) const {
   return utils::FormatTime(utils::FromSteadyClock(row.Process.value().get().GetStartTime()));
 }
 
@@ -266,7 +256,7 @@ std::string ColumnCommand::GetHeaderText() const { return "Command"; }
 
 void ColumnCommand::RegisterRow(ProcessTree::Row& row) const {}
 
-std::string ColumnCommand::GetDataText(bool isRowSelected, bool isColumnSelected, ProcessTree::Row& row) const {
+std::string ColumnCommand::GetDataText(bool isRowSelected, ProcessTree::Row& row) const {
   auto& process = row.Process.value().get();
   return utils::TreeString(process.GetTreePosition()) + FormatCommand(row.Metrics.GetCommandLine(process));
 }
