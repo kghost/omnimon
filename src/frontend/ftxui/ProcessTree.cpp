@@ -188,14 +188,15 @@ bool ProcessTree::OnEvent(::ftxui::Event event) {
   }
 
   auto table = ::ftxui::Table(data);
-  table.SelectAll().DecorateSeparatorVertical(
-      ::ftxui::size(::ftxui::WidthOrHeight::WIDTH, ::ftxui::Constraint::EQUAL, 1));
-  table.SelectRow(0).Decorate(bold);
-  table.SelectRow(0).Decorate(underlined);
 
   for (auto [index, column] : std::views::enumerate(_Columns)) {
     column->Decorate(table.SelectColumn(index));
   }
+
+  table.SelectAll().DecorateSeparatorVertical(
+      ::ftxui::size(::ftxui::WidthOrHeight::WIDTH, ::ftxui::Constraint::EQUAL, 1));
+  table.SelectRow(0).Decorate(bold);
+  table.SelectRow(0).Decorate(underlined);
 
   return table.Render() | frame | reflect([this](Box box) { this->OnTableSizeChange(box); });
 }
