@@ -14,8 +14,8 @@ public:
   virtual ~Publisher() = default;
 
   void Notify();
-  void AddSubscribe(SubscriberBase& subscriber) { _Subscribers.insert(std::ref(subscriber)); }
-  void RemoveSubscribe(SubscriberBase& subscriber) { _Subscribers.erase(std::ref(subscriber)); }
+  void AddSubscribe(SubscriberBase& subscriber) { _Subscribers.insert(subscriber); }
+  void RemoveSubscribe(SubscriberBase& subscriber) { _Subscribers.erase(subscriber); }
 
 private:
   class Comp {

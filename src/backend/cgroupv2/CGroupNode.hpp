@@ -2,14 +2,12 @@
 
 #include <filesystem>
 #include <functional>
-#include <list>
-#include <map>
 #include <memory>
 #include <ranges>
 #include <string>
 #include <utility>
 
-#include "../../utils/TreeString.hpp"
+#include "../../utils/BackendTree.hpp"
 #include "../events/DirectoryWatcher.hpp"
 #include "../metrics/SimplePublisher.hpp"
 
@@ -19,12 +17,10 @@ class CGroupManager;
 
 class CGroupNode;
 
-class CGroupNodeBase {
+class CGroupNodeBase : public utils::TreeNodeMixin<CGroupManager, const std::string, CGroupNode> {
 public:
   explicit CGroupNodeBase(CGroupManager& manager, std::optional<std::reference_wrapper<CGroupNode>> parent,
-                          std::string name)
-      : _Manager(manager), _Parent(parent), _Name(std::move(name)),
-        _RemovingPublisher(std::make_shared<backend::metrics::SimplePublisher<bool>>(false)) {}
+                          const std::string& name);
   ~CGroupNodeBase() = default;
 
   CGroupNodeBase(const CGroupNodeBase&) = delete;
@@ -32,20 +28,12 @@ public:
   CGroupNodeBase& operator=(const CGroupNodeBase&) = delete;
   CGroupNodeBase& operator=(CGroupNodeBase&&) = delete;
 
+  operator const std::string() const { return _Name; }
   const std::string& GetName() const { return _Name; }
   std::filesystem::path GetPath() const;
 
-  template <typename Callback>
-  auto OnNodeRemoving(Callback&& callback) const -> std::shared_ptr<backend::metrics::SubscriberBase> {
-    return backend::metrics::MakeSubscriber<backend::metrics::SimplePublisher<bool>>(_RemovingPublisher,
-                                                                                     std::forward<Callback>(callback));
-  }
-
 protected:
-  CGroupManager& _Manager;
-  std::optional<std::reference_wrapper<CGroupNode>> _Parent; // Parent always exists, except for the root node
   const std::string _Name;
-  std::shared_ptr<backend::metrics::SimplePublisher<bool>> _RemovingPublisher;
 };
 
 class CGroupNode : public CGroupNodeBase, public events::DirectoryWatchDescriptor {
@@ -53,7 +41,7 @@ class CGroupNode : public CGroupNodeBase, public events::DirectoryWatchDescripto
 public:
   explicit CGroupNode(CGroupManager& manager);
   explicit CGroupNode(CGroupManager& manager, std::optional<std::reference_wrapper<CGroupNode>> parent,
-                      std::string name);
+                      const std::string& name);
   ~CGroupNode() override;
   void InitializeChildren();
 
@@ -67,21 +55,13 @@ public:
   void NodeDetach();   // Detach the node from the tree.
 
   std::chrono::system_clock::time_point GetCreateTime() const { return _CreateTime; }
-  std::optional<std::reference_wrapper<CGroupNode>> GetParent() const { return _Parent; }
 
   auto GetChildren() const { return _Children | std::views::values; }
-
-  std::list<std::reference_wrapper<const CGroupNode>> GetAncestors() const;
-  std::list<std::reference_wrapper<const CGroupNode>> GetAncestorsAndSelf() const;
-  std::list<utils::TreeStringPosition> GetTreePosition() const;
-  utils::TreeStringPosition GetChildPosition(const CGroupNode& child) const;
 
   static constexpr const std::string ROOT_NAME = "root";
 
 private:
   std::chrono::system_clock::time_point _CreateTime;
-  std::map<const std::string, CGroupNode&> _Children;
-
   std::chrono::system_clock::time_point ReadCreateTime() const;
 };
 

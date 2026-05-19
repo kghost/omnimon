@@ -16,22 +16,22 @@
 
 namespace backend::process {
 
-ProcessMetrics::ProcessMetrics(std::shared_ptr<Process> process)
-    : _Process(process), _ReadBytes(std::make_shared<metrics::SharedGauge>(*this)),
+ProcessMetrics::ProcessMetrics(Process& process)
+    : _ReadBytes(std::make_shared<metrics::SharedGauge>(*this)),
       _WriteBytes(std::make_shared<metrics::SharedGauge>(*this)),
       _ReadCalls(std::make_shared<metrics::SharedGauge>(*this)),
       _WriteCalls(std::make_shared<metrics::SharedGauge>(*this)),
       _DiskReadBytes(std::make_shared<metrics::SharedGauge>(*this)),
       _DiskWriteBytes(std::make_shared<metrics::SharedGauge>(*this)),
       _DiskCancelledWriteBytes(std::make_shared<metrics::SharedGauge>(*this)) {
-  UpdateMetrics();
+  UpdateMetrics(process);
 }
 
-std::string ProcessMetrics::GetCommandLine() const {
+std::string ProcessMetrics::GetCommandLine(Process& process) const {
   std::ostringstream result;
 
   try {
-    utils::FileHandle fd(PosixE(open((_Process->GetProcDirPath() / "cmdline").c_str(), O_RDONLY)));
+    utils::FileHandle fd(PosixE(open((process.GetProcDirPath() / "cmdline").c_str(), O_RDONLY)));
     std::array<char, 1024> buffer;
     for (ssize_t bytes = PosixE(read(fd, buffer.data(), buffer.size())); bytes > 0;
          bytes = PosixE(read(fd, buffer.data(), buffer.size()))) {
@@ -39,25 +39,25 @@ std::string ProcessMetrics::GetCommandLine() const {
     }
   } catch (const std::system_error& e) {
     if (e.code() == std::errc::no_such_file_or_directory || e.code() == std::errc::no_such_process) {
-      return _Process->GetComm();
+      return process.GetComm();
     } else {
       throw;
     }
   }
 
   if (result.tellp() == 0) {
-    return _Process->GetComm();
+    return process.GetComm();
   } else {
     return result.str();
   }
 }
 
-void ProcessMetrics::UpdateMetrics() {
-  if (!_Process->Exists()) {
+void ProcessMetrics::UpdateMetrics(Process& process) {
+  if (!process.Exists()) {
     return;
   }
 
-  std::ifstream ifs(_Process->GetProcDirPath() / "io");
+  std::ifstream ifs(process.GetProcDirPath() / "io");
   if (!ifs.is_open()) {
     return;
   }

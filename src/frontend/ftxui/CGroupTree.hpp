@@ -39,8 +39,8 @@ public:
     Row& operator=(const Row&) = delete;
     Row& operator=(Row&&) = delete;
 
-    CGroupTree& _Tree;
-    backend::cgroupv2::CGroupNode& Node;
+    CGroupTree& Tree;
+    std::optional<std::reference_wrapper<backend::cgroupv2::CGroupNode>> Node;
     backend::cgroupv2::CGroupMetrics Metrics;
     std::shared_ptr<backend::metrics::SubscriberBase> OnNodeRemoving;
 

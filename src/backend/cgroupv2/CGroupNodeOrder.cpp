@@ -9,7 +9,11 @@ namespace backend::cgroupv2 {
 
 bool CGroupNodeOrderByTime::operator()(const CGroupNode& a, const CGroupNode& b) const {
   assert(a.GetParent() == b.GetParent());
-  return a.GetCreateTime() < b.GetCreateTime();
+  if (a.GetCreateTime() != b.GetCreateTime()) {
+    return a.GetCreateTime() < b.GetCreateTime();
+  } else {
+    return a.GetName() < b.GetName();
+  }
 }
 
 bool CGroupNodeOrderHierarchical::operator()(const CGroupNode& a, const CGroupNode& b) const {

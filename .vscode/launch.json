@@ -33,7 +33,7 @@
             "request": "attach",
             "name": "(lldp-dap) Attach",
             "program": "${workspaceFolder}/build/omnimon",
-            "pid": 1439061
+            "pid": 2449568
         }
     ]
 }

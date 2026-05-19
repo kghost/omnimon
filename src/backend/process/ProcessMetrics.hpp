@@ -15,11 +15,11 @@ class Process;
 
 class ProcessMetrics final : public metrics::SharedPublisherOwner {
 public:
-  explicit ProcessMetrics(std::shared_ptr<Process> process);
+  explicit ProcessMetrics(Process& process);
   ~ProcessMetrics() override = default;
 
-  void UpdateMetrics();
-  std::shared_ptr<Process> GetProcess() const { return _Process; }
+  void UpdateMetrics(Process& process);
+  std::string GetCommandLine(Process& process) const;
 
   GaugePtr GetReadBytes() const { return _ReadBytes; }
   GaugePtr GetWriteBytes() const { return _WriteBytes; }
@@ -28,12 +28,10 @@ public:
   GaugePtr GetDiskReadBytes() const { return _DiskReadBytes; }
   GaugePtr GetDiskWriteBytes() const { return _DiskWriteBytes; }
   GaugePtr GetDiskCancelledWriteBytes() const { return _DiskCancelledWriteBytes; }
-  std::string GetCommandLine() const;
 
   std::chrono::steady_clock::time_point GetLastUpdate() const override { return _LastUpdate; }
 
 private:
-  std::shared_ptr<Process> _Process;
   std::chrono::steady_clock::time_point _LastUpdate;
 
   std::shared_ptr<metrics::SharedGauge> _ReadBytes;

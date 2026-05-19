@@ -1,27 +1,39 @@
 #include "Process.hpp"
 
+#include <cassert>
 #include <fcntl.h>
 #include <fstream>
 #include <pwd.h>
-#include <ranges>
 #include <sstream>
 #include <string>
 #include <sys/stat.h>
 
 #include "../../utils/Clock.hpp"
+#include "ProcessManager.hpp"
+#include "Types.hpp"
 
 namespace backend::process {
 
 const std::chrono::steady_clock::time_point Process::EPOCH;
 
-Process::Process(const std::filesystem::path& dir)
-    : _ProcDirPath(dir), _State(std::make_shared<metrics::SharedGauge>(*this)),
-      _Mem(std::make_shared<metrics::SharedGauge>(*this)), _UserTime(std::make_shared<metrics::SharedGauge>(*this)),
+Process::Process(ProcessManager& manager, PidType pid)
+    : TreeNodeMixin<ProcessManager, PidType, Process>(manager), _Pid(pid),
+      _State(std::make_shared<metrics::SharedGauge>(*this)), _Mem(std::make_shared<metrics::SharedGauge>(*this)),
+      _UserTime(std::make_shared<metrics::SharedGauge>(*this)),
       _SystemTime(std::make_shared<metrics::SharedGauge>(*this)) {}
 
-Process::~Process() {
-  if (_Parent) {
-    _Parent->RemoveChild(GetPid());
+Process::~Process() {}
+
+std::filesystem::path Process::GetProcDirPath() const { return ProcessManager::PROC_PATH / std::to_string(_Pid); }
+
+void Process::DetachProcess() {
+  assert(!_RemovingPublisher->GetValue() && "Process has already been removed");
+  _RemovingPublisher->Update(true);
+  for (auto& [_, child] : _Children) {
+    child.ClearParent();
+  }
+  if (_Parent.has_value()) {
+    ClearParent();
   }
 }
 
@@ -42,7 +54,7 @@ std::string Process::GetUser() const {
   return user;
 }
 
-void Process::ParseStatFile() {
+void Process::ParseStatFile(ProcessManager& psm) {
   struct ProcessStat {
     char state;
     int pgrp;
@@ -68,10 +80,10 @@ void Process::ParseStatFile() {
   };
 
   ProcessStat ps;
-  std::ifstream ifs(_ProcDirPath / "stat");
+  std::ifstream ifs(GetProcDirPath() / "stat");
 
   if (!ifs.is_open()) {
-    SetExists(false);
+    DetachProcess();
     return;
   }
 
@@ -79,7 +91,7 @@ void Process::ParseStatFile() {
   try {
     content = std::string(std::istreambuf_iterator<char>(ifs), {});
   } catch (const std::ios_base::failure& e) {
-    SetExists(false);
+    DetachProcess();
     return;
   }
 
@@ -95,8 +107,10 @@ void Process::ParseStatFile() {
       ps.cminflt >> ps.majflt >> ps.cmajflt >> ps.utime >> ps.stime >> ps.cutime >> ps.cstime >> ps.priority >>
       ps.nice >> ps.num_threads >> ps.itrealvalue >> ps.starttime >> ps.vsize >> ps.rss;
 
+  // Parent is reorganized after all processes are updated, skip setting parent here
+
   struct stat st;
-  if (stat(_ProcDirPath.c_str(), &st) == 0) {
+  if (stat(GetProcDirPath().c_str(), &st) == 0) {
     _Info.uid = st.st_uid;
   }
 
@@ -108,37 +122,11 @@ void Process::ParseStatFile() {
     // TODO: reset metrics
   }
   _LastUpdate = std::chrono::steady_clock::now();
-  SetExists(true);
 
   _State->SetValue(ps.state);
   _Mem->SetValue(ps.rss);
   _UserTime->SetValue(ps.utime);
   _SystemTime->SetValue(ps.stime);
-}
-
-std::list<utils::TreeStringPosition> Process::GetTreePosition(std::shared_ptr<Process> me) {
-  std::list<utils::TreeStringPosition> result;
-  for (auto [parent, current] = std::tuple{me->_Parent, me}; parent; current = parent, parent = parent->_Parent) {
-    result.push_front(parent->GetChildPosition(current));
-  }
-  return result;
-}
-
-utils::TreeStringPosition Process::GetChildPosition(std::shared_ptr<const Process> child) const {
-  if (_Children.rbegin()->second.lock() == child) {
-    return utils::TreeStringPosition::Last;
-  } else {
-    return utils::TreeStringPosition::NotLast;
-  }
-}
-
-std::list<std::shared_ptr<Process>> Process::GetAncestors(std::shared_ptr<Process> p) {
-  std::list<std::shared_ptr<Process>> ancestors;
-  while (p) {
-    ancestors.push_front(p);
-    p = p->GetParent();
-  }
-  return ancestors;
 }
 
 } // namespace backend::process

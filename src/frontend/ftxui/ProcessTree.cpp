@@ -4,12 +4,20 @@
 #include <cassert>
 #include <ftxui/dom/elements.hpp>
 #include <ftxui/dom/table.hpp>
+#include <functional>
 #include <ranges>
 
 #include "../../backend/process/ProcessMetrics.hpp"
 #include "ProcessColumns.hpp"
 
 namespace frontend::ftxui {
+
+ProcessTree::Row::Row(ProcessTree& tree, backend::process::Process& process)
+    : Tree(tree), Process(process), Metrics(process), OnNodeRemoving(process.OnNodeRemoving([this](bool removed) {
+        if (removed) {
+          Tree.OnNodeRemoving(*this);
+        }
+      })) {}
 
 ProcessTree::ProcessTree(std::shared_ptr<backend::metrics::SimplePublisher<int>> tick, std::function<void()> refresh)
     : _Refresh(refresh), _Columns(CreateDefaultColumns()), _CursorRow(_Rows.end()), _CursorColumn(_Columns.end()),
@@ -19,9 +27,8 @@ ProcessTree::ProcessTree(std::shared_ptr<backend::metrics::SimplePublisher<int>>
 std::string ProcessTree::GetTabName() const { return kProcessTreeTabName; }
 
 void ProcessTree::MoveCursorAndDraw(ssize_t offset) {
-  auto currentProcess = (*_CursorRow)->MetricsPtr->GetProcess();
-  auto selectedProcess = _ProcessListing.MoveCursor(currentProcess, offset);
-  auto ps = _ProcessListing.GetAround(selectedProcess, std::distance(_Rows.begin(), _CursorRow), _TableCapacity);
+  auto& selectedProcess = _ProcessManager.MoveCursor((*_CursorRow)->Process.value().get(), offset);
+  auto ps = _ProcessManager.GetAround(selectedProcess, std::distance(_Rows.begin(), _CursorRow), _TableCapacity);
   UpdateData(selectedProcess, ps);
 }
 
@@ -34,49 +41,78 @@ void ProcessTree::OnTableSizeChange(::ftxui::Box box) {
   }
 }
 
+void ProcessTree::OnNodeRemoving(Row& row) {
+  assert(!_Rows.empty());
+  assert(row.Process.has_value());
+  auto& process = row.Process.value().get();
+  row.Process.reset();
+  if (_CursorRow != _Rows.end() && _CursorRow->get() == std::addressof(row)) {
+    auto FindValidRow = [&](auto it) -> decltype(_CursorRow) {
+      for (; it != _Rows.begin(); --it) {
+        if ((*it)->Process.has_value()) {
+          return it;
+        }
+      }
+      if ((*_Rows.begin())->Process.has_value()) {
+        return _Rows.begin();
+      } else {
+        return _Rows.end();
+      }
+    };
+
+    auto parent = process.GetParent();
+    if (parent.has_value()) {
+      auto& newSelected = parent.value().get();
+      auto it = std::ranges::find_if(_Rows, [&](auto& row) {
+        return row->Process.has_value() && std::addressof(row->Process.value().get()) == std::addressof(newSelected);
+      });
+      _CursorRow = (it != _Rows.end()) ? it : FindValidRow(_CursorRow);
+    } else {
+      _CursorRow = FindValidRow(_CursorRow);
+    }
+  }
+  assert(_CursorRow == _Rows.end() || (*_CursorRow)->Process.has_value());
+}
+
 void ProcessTree::Update() {
   auto size = _TableCapacity;
   if (size > 0) {
-    _ProcessListing.UpdateList();
-    std::vector<std::shared_ptr<backend::process::Process>> ps;
-    std::shared_ptr<backend::process::Process> selectedProcess;
+    _ProcessManager.UpdateList();
+    std::vector<std::reference_wrapper<backend::process::Process>> ps;
     if (_CursorRow != _Rows.end()) {
-      selectedProcess = _ProcessListing.GetValidAncestor((*_CursorRow)->MetricsPtr->GetProcess());
+      auto& selectedProcess = (*_CursorRow)->Process.value().get();
       auto cursorPosition = std::min(size - 1, std::distance(_Rows.begin(), _CursorRow));
-      ps = _ProcessListing.GetAround(selectedProcess, cursorPosition, size);
+      ps = _ProcessManager.GetAround(selectedProcess, cursorPosition, size);
+      UpdateData(selectedProcess, ps);
     } else {
-      ps = _ProcessListing.GetTopK(size);
+      ps = _ProcessManager.GetTopK(size);
       if (!ps.empty()) {
-        selectedProcess = ps[0];
+        UpdateData(ps[0].get(), ps);
       }
     }
-
-    UpdateData(selectedProcess, ps);
   }
 }
 
-void ProcessTree::UpdateData(std::shared_ptr<backend::process::Process> selectedProcess,
-                             std::vector<std::shared_ptr<backend::process::Process>> ps) {
+void ProcessTree::UpdateData(backend::process::Process& selectedProcess,
+                             std::vector<std::reference_wrapper<backend::process::Process>> ps) {
   assert(std::ranges::contains(ps, selectedProcess));
   std::map<backend::process::PidType, std::reference_wrapper<std::unique_ptr<Row>>> existingProcesses;
   for (auto& row : _Rows) {
-    auto proc = row->MetricsPtr->GetProcess();
-    if (proc->Exists()) {
-      existingProcesses.emplace(proc->GetPid(), row);
+    if (row->Process.has_value()) {
+      existingProcesses.emplace(row->Process.value().get().GetPid(), row);
     }
   }
 
   std::list<std::unique_ptr<Row>> oldRows;
   oldRows.swap(_Rows);      // Move old rows to a temporary list to preserve their memory while we create new rows
   _CursorRow = _Rows.end(); // Reset cursor row, will be updated in the loop below
-  for (auto process : ps) {
-    auto it = existingProcesses.find(process->GetPid());
+  for (auto& process : ps | std::views::transform([](auto& ref) -> backend::process::Process& { return ref.get(); })) {
+    auto it = existingProcesses.find(process.GetPid());
     if (it != existingProcesses.end()) {
       _Rows.emplace_back(std::move(it->second.get()));
-      _Rows.back()->MetricsPtr->UpdateMetrics();
+      _Rows.back()->Metrics.UpdateMetrics(process);
     } else {
-      _Rows.push_back(
-          std::make_unique<Row>(Row{.MetricsPtr = std::make_shared<backend::process::ProcessMetrics>(process)}));
+      _Rows.push_back(std::make_unique<Row>(*this, process));
       for (auto& column : _Columns) {
         column->RegisterRow(*_Rows.back());
       }
@@ -86,6 +122,11 @@ void ProcessTree::UpdateData(std::shared_ptr<backend::process::Process> selected
     }
   }
   assert(_CursorRow != _Rows.end());
+}
+
+void ProcessTree::RemoveData() {
+  _Rows.clear();
+  _CursorRow = _Rows.end();
 }
 
 bool ProcessTree::OnEvent(::ftxui::Event event) {
@@ -129,12 +170,14 @@ bool ProcessTree::OnEvent(::ftxui::Event event) {
 
   // Data
   for (auto& row : _Rows) {
-    data.push_back(_Columns | std::views::transform([&](const auto& column) -> std::string {
-                     bool isRowSelected = (row == *_CursorRow);
-                     bool isColumnSelected = (column == *_CursorColumn);
-                     return column->GetDataText(isRowSelected, isColumnSelected, *row);
-                   }) |
-                   std::ranges::to<std::vector>());
+    if (row->Process.has_value()) {
+      data.push_back(_Columns | std::views::transform([&](const auto& column) -> std::string {
+                       bool isRowSelected = (row == *_CursorRow);
+                       bool isColumnSelected = (column == *_CursorColumn);
+                       return column->GetDataText(isRowSelected, isColumnSelected, *row);
+                     }) |
+                     std::ranges::to<std::vector>());
+    }
   }
 
   auto table = ::ftxui::Table(data);

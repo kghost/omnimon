@@ -11,21 +11,21 @@ namespace backend::cgroupv2 {
 
 class CGroupNode;
 
-struct IoStatGauges {
-  std::shared_ptr<metrics::SharedGauge> ReadBytes;
-  std::shared_ptr<metrics::SharedGauge> WriteBytes;
-  std::shared_ptr<metrics::SharedGauge> ReadCalls;
-  std::shared_ptr<metrics::SharedGauge> WriteCalls;
-  std::shared_ptr<metrics::SharedGauge> DiscardBytes;
-  std::shared_ptr<metrics::SharedGauge> DiscardCalls;
-};
-
 class CGroupMetrics : public metrics::SharedPublisherOwner {
 public:
-  CGroupMetrics(CGroupNode& node);
+  CGroupMetrics(const CGroupNode& node);
   ~CGroupMetrics() = default;
 
   std::chrono::steady_clock::time_point GetLastUpdate() const override { return _LastUpdate; }
+
+  struct IoStatGauges {
+    std::shared_ptr<metrics::SharedGauge> ReadBytes;
+    std::shared_ptr<metrics::SharedGauge> WriteBytes;
+    std::shared_ptr<metrics::SharedGauge> ReadCalls;
+    std::shared_ptr<metrics::SharedGauge> WriteCalls;
+    std::shared_ptr<metrics::SharedGauge> DiscardBytes;
+    std::shared_ptr<metrics::SharedGauge> DiscardCalls;
+  };
 
   std::shared_ptr<metrics::SharedGauge> GetMemoryCurrent() const { return _MemoryCurrent; }
   std::shared_ptr<metrics::SharedGauge> GetPidsCurrent() const { return _PidsCurrent; }
@@ -36,10 +36,9 @@ public:
   }
   std::map<std::string, IoStatGauges>& GetIoStats() { return _IoStats; }
 
-  void ReadFromDirectory();
+  void ReadFromDirectory(const CGroupNode& node);
 
 private:
-  CGroupNode& _Node;
   std::chrono::steady_clock::time_point _LastUpdate;
 
   std::shared_ptr<metrics::SharedGauge> _PidsCurrent;

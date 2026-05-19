@@ -24,7 +24,7 @@ WatchDescriptor DirectoryWatcher::AddDescriptor(DirectoryWatchDescriptor& descri
                                                 const std::filesystem::path& path) {
   WatchDescriptor wd =
       PosixE(inotify_add_watch(_Fd, path.c_str(), IN_CREATE | IN_DELETE | IN_MOVED_FROM | IN_MOVED_TO | IN_ONLYDIR));
-  _WatchMap.emplace(wd, std::ref(descriptor));
+  _WatchMap.emplace(wd, descriptor);
   return wd;
 }
 

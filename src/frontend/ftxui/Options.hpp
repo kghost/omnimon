@@ -11,7 +11,7 @@ public:
     return instance;
   }
 
-  std::chrono::milliseconds RefreshInterval = std::chrono::milliseconds(1000);
+  std::chrono::milliseconds RefreshInterval = std::chrono::milliseconds(10000);
 
 private:
   Config() = default;

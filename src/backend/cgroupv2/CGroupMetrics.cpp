@@ -5,7 +5,7 @@
 #include <sstream>
 #include <string>
 
-#include "../../utils/LazyInitializer.hpp"
+#include "../../utils/Lazy.hpp"
 #include "CGroupNode.hpp"
 
 namespace backend::cgroupv2 {
@@ -137,19 +137,18 @@ std::map<std::string, IoStat> ReadIoStatFile(const std::filesystem::path& path) 
   return result;
 }
 
-CGroupMetrics::CGroupMetrics(CGroupNode& node)
-    : _Node(node), _LastUpdate(std::chrono::steady_clock::now()),
-      _MemoryCurrent(std::make_shared<metrics::SharedGauge>(*this)),
+CGroupMetrics::CGroupMetrics(const CGroupNode& node)
+    : _LastUpdate(std::chrono::steady_clock::now()), _MemoryCurrent(std::make_shared<metrics::SharedGauge>(*this)),
       _PidsCurrent(std::make_shared<metrics::SharedGauge>(*this)),
       _CpuUsageUsec(std::make_shared<metrics::SharedPublisher<std::chrono::microseconds>>(*this)),
       _CpuUserUsec(std::make_shared<metrics::SharedPublisher<std::chrono::microseconds>>(*this)),
       _CpuSystemUsec(std::make_shared<metrics::SharedPublisher<std::chrono::microseconds>>(*this)) {
-  ReadFromDirectory();
+  ReadFromDirectory(node);
 }
 
-void CGroupMetrics::ReadFromDirectory() {
+void CGroupMetrics::ReadFromDirectory(const CGroupNode& node) {
   _LastUpdate = std::chrono::steady_clock::now();
-  const auto path = _Node.GetPath();
+  const auto path = node.GetPath();
   if (auto value = ReadNumericFile(path / "memory.current")) {
     _MemoryCurrent->SetValue(value.value());
   }
