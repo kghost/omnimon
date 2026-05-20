@@ -10,7 +10,10 @@
             "name": "(lldp-dap) Launch WalkCGroupNodes",
             "program": "${workspaceFolder}/build/omnimon-cgroupv2-walker",
             "args": [],
-            "env": [],
+            "env": [
+                "ASAN_OPTIONS=log_path=./asan",
+                "LSAN_OPTIONS=verbosity=1:log_threads=1"
+            ],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal"
         },

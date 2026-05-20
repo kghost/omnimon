@@ -39,6 +39,7 @@ public:
   CGroupManager& operator=(CGroupManager&&) = delete;
 
   auto GetAllNodes() { return std::views::all(_NodeSet); }
+  bool ContainsNode(const CGroupNode& node) const { return _NodeSet.contains(node); }
 
   events::DirectoryWatcher& GetWatcher() { return _Watcher; }
   CGroupNode& GetRoot() const { return _Root; }

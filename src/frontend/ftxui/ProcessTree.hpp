@@ -1,89 +1,66 @@
 #pragma once
 
+#include <functional>
+
 #include <ftxui/dom/table.hpp>
 #include <ftxui/screen/box.hpp>
-#include <functional>
-#include <list>
-#include <memory>
 
-#include "../../backend/metrics/Binding.hpp"
 #include "../../backend/process/Process.hpp"
 #include "../../backend/process/ProcessManager.hpp"
 #include "../../backend/process/ProcessMetrics.hpp"
-#include "OmniMonInterface.hpp"
+#include "../../utils/Range.hpp"
 #include "TabSelector.hpp"
+#include "TableBase.hpp"
 
 namespace frontend::ftxui {
 
-class ProcessTree : public FtxuiTabView {
+class ProcessTree;
+class ProcessRow;
+
+class ProcessRow : public TableBase<ProcessTree, ProcessRow, backend::process::Process>::RowBase {
+public:
+  explicit ProcessRow(ProcessTree& tree, backend::process::Process& process);
+
+  ProcessRow(const ProcessRow&) = delete;
+  ProcessRow& operator=(const ProcessRow&) = delete;
+  ProcessRow(ProcessRow&&) noexcept = delete;
+  ProcessRow& operator=(ProcessRow&&) noexcept = delete;
+
+  void UpdateMetrics(ProcessTree&) { Metrics.UpdateMetrics(Node.value().get()); }
+
+  backend::process::ProcessMetrics Metrics;
+
+  MetricEntry State;
+  MetricEntry Cpu;
+  MetricEntry Mem;
+  MetricEntry Time;
+  MetricEntry DiskRead;
+  MetricEntry DiskWrite;
+  MetricEntry DiskAccumulated;
+  MetricEntry Io;
+  MetricEntry IoAccumulated;
+};
+
+class ProcessTree : public TableBase<ProcessTree, ProcessRow, backend::process::Process> {
 public:
   explicit ProcessTree(OmniMonInterface& interface);
   ~ProcessTree() override = default;
 
   std::string GetTabName() const override;
-  bool OnEvent(::ftxui::Event event) override;
-  ::ftxui::Element Render() override;
+  bool OnEvent(::ftxui::Event event) override { return OnEventImpl(event); }
+  ::ftxui::Element Render() override { return RenderImpl(); }
 
-  class Row final {
-  public:
-    explicit Row(ProcessTree& tree, backend::process::Process& process);
-
-    Row(const Row&) = delete;
-    Row& operator=(const Row&) = delete;
-    Row(Row&&) noexcept = delete;
-    Row& operator=(Row&&) noexcept = delete;
-
-    ProcessTree& Tree;
-    std::optional<std::reference_wrapper<backend::process::Process>> Process;
-    backend::process::ProcessMetrics Metrics;
-    std::shared_ptr<backend::metrics::SubscriberBase> OnNodeRemoving;
-
-    struct MetricEntry {
-      std::string Display;
-      std::shared_ptr<backend::metrics::SubscriberBase> Updater;
-    };
-
-    MetricEntry State;
-    MetricEntry Cpu;
-    MetricEntry Mem;
-    MetricEntry Time;
-    MetricEntry DiskRead;
-    MetricEntry DiskWrite;
-    MetricEntry DiskAccumulated;
-    MetricEntry Io;
-    MetricEntry IoAccumulated;
-  };
-  class Column {
-  public:
-    virtual ~Column() = default;
-    virtual std::string GetHeaderText() const = 0;
-    virtual void RegisterRow(Row& row) const = 0;
-    virtual std::string GetDataText(bool isRowSelected, Row& row) const = 0;
-    virtual void Decorate(::ftxui::TableSelection selection) const = 0;
-  };
-
-  void OnNodeRemoving(Row& row);
+  using Row = ProcessRow;
+  using Column = TableBase<ProcessTree, ProcessRow, backend::process::Process>::ColumnBase;
 
 private:
-  OmniMonInterface& _Interface;
+  friend class TableBase<ProcessTree, ProcessRow, backend::process::Process>;
 
-  static constexpr const ssize_t HeaderHeight = 1; // Number of rows reserved for the header
-  ssize_t _TableCapacity = 0;                      // Current height of the table (excluding header)
-  backend::process::ProcessManager _ProcessManager;
+  backend::process::ProcessManager _Manager;
+  std::list<std::unique_ptr<Column>> _Columns; // Column definitions
 
-  std::list<Row> _Rows;                // Row definitions (e.g., which process to display)
-  std::list<Row>::iterator _CursorRow; // Current position of the cursor in the rows
-
-  std::list<std::unique_ptr<Column>> _Columns; // Column definitions (e.g., width, header text)
-
-  std::shared_ptr<backend::metrics::SubscriberBase> _TickUpdater;
-
-  void OnTableSizeChange(::ftxui::Box box);
-  void Update();
-  void MoveCursorAndDraw(ssize_t offset);
-  void UpdateData(backend::process::Process& selectedProcess,
-                  std::vector<std::reference_wrapper<backend::process::Process>> ps);
-  void RemoveData();
+  utils::AnyView<Column&> GetAllColumns() const;
+  void PreUpdate();
 
   std::list<std::unique_ptr<Column>> CreateDefaultColumns();
 };

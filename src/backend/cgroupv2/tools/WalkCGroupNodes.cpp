@@ -22,14 +22,9 @@ int main(int argc, char* argv[]) {
     return 1;
   }
 
-  try {
-    events::EventLoop loop;
-    cgroupv2::CGroupManager manager(loop);
-    PrintCGroupTree(manager.GetRoot(), "");
-    std::cout << "Finished walking cgroup nodes." << std::endl;
-    return 0;
-  } catch (const std::exception& ex) {
-    std::cerr << "Failed to walk cgroup nodes: " << ex.what() << '\n';
-    return 1;
-  }
+  events::EventLoop loop;
+  cgroupv2::CGroupManager manager(loop);
+  PrintCGroupTree(manager.GetRoot(), "");
+  std::cout << "Finished walking cgroup nodes." << std::endl;
+  return 0;
 }

@@ -1,11 +1,12 @@
 #pragma once
 
-#include <ftxui/component/event.hpp>
-#include <ftxui/dom/elements.hpp>
 #include <functional>
 #include <memory>
 #include <string>
 #include <vector>
+
+#include <ftxui/component/event.hpp>
+#include <ftxui/dom/elements.hpp>
 
 #include "FtxuiView.hpp"
 

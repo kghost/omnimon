@@ -2,12 +2,13 @@
 
 #include <chrono>
 #include <csignal>
-#include <ftxui/component/component.hpp>
-#include <ftxui/component/loop.hpp>
-#include <ftxui/component/screen_interactive.hpp>
 #include <memory>
 #include <optional>
 #include <string>
+
+#include <ftxui/component/component.hpp>
+#include <ftxui/component/loop.hpp>
+#include <ftxui/component/screen_interactive.hpp>
 
 #include "../../backend/events/Events.hpp"
 #include "../../backend/metrics/SimplePublisher.hpp"

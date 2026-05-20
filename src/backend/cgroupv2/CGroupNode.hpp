@@ -50,7 +50,7 @@ public:
   void OnDirectoryDeleteChild(const std::string& name) override;
 
   void TreeDestruct(); // Free the whole tree. Should only be called from the root node.
-  void NodeDetach();   // Detach the node from the tree.
+  void NodeDetach();   // Detach the node from the tree. this will delete the node
 
   std::chrono::system_clock::time_point GetCreateTime() const { return _CreateTime; }
 

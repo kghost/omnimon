@@ -22,6 +22,15 @@ set(FTXUI_ENABLE_INSTALL OFF)
 # add_compile_options("-stdlib=libc++" "-fexperimental-library")
 # add_link_options("-stdlib=libc++" "-lc++experimental")
 
+add_compile_options("-fno-omit-frame-pointer")
+
+option(OMNIMON_ENABLE_ASAN "Enable AddressSanitizer for host targets" ON)
+
+if(OMNIMON_ENABLE_ASAN)
+  add_compile_options("-fsanitize=address")
+  add_link_options("-fsanitize=address")
+endif()
+
 execute_process(
   COMMAND uname -m
   COMMAND sed s/x86_64/x86/

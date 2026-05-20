@@ -1,15 +1,15 @@
 #pragma once
 
 #include <deque>
-#include <ftxui/component/event.hpp>
-#include <ftxui/dom/elements.hpp>
 #include <string>
 #include <vector>
 
+#include <ftxui/component/event.hpp>
+#include <ftxui/dom/elements.hpp>
+
 namespace frontend::ftxui {
 
-template <typename T>
-class CircularBuffer {
+template <typename T> class CircularBuffer {
 public:
   explicit CircularBuffer(size_t capacity) : _Capacity(capacity) {}
 
@@ -35,23 +35,14 @@ class OmniMonInterface;
 
 class DebugWindow {
 public:
-  enum class DebugLevel {
-    Info,
-    Warning,
-    Error,
-    Debug
-  };
+  enum class DebugLevel { Info, Warning, Error, Debug };
 
   struct LogMessage {
     std::string Text;
     DebugLevel Level;
   };
 
-  enum class State {
-    Hide,
-    Show,
-    Floating
-  };
+  enum class State { Hide, Show, Floating };
 
   explicit DebugWindow(OmniMonInterface& interface);
   ~DebugWindow() = default;

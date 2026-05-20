@@ -1,8 +1,9 @@
 #include "ProcessColumns.hpp"
 
 #include <format>
-#include <ftxui/dom/elements.hpp>
 #include <unicode/unistr.h>
+
+#include <ftxui/dom/elements.hpp>
 
 #include "../../backend/metrics/Arithmetic.hpp"
 #include "../../backend/metrics/Counter.hpp"
@@ -39,7 +40,7 @@ std::string ColumnPid::GetHeaderText() const { return "PID"; }
 void ColumnPid::RegisterRow(ProcessTree::Row& row) const {}
 
 std::string ColumnPid::GetDataText(bool isRowSelected, ProcessTree::Row& row) const {
-  return std::format("{}", row.Process.value().get().GetPid());
+  return std::format("{}", row.Node.value().get().GetPid());
 }
 
 void ColumnPid::Decorate(::ftxui::TableSelection selection) const { selection.DecorateCells(::ftxui::align_right); }
@@ -51,7 +52,7 @@ void ColumnPid::Decorate(::ftxui::TableSelection selection) const { selection.De
 std::string ColumnState::GetHeaderText() const { return "S"; }
 
 void ColumnState::RegisterRow(ProcessTree::Row& row) const {
-  row.State.Updater = backend::metrics::MakeSubscriber(row.Process.value().get().GetState(), [&row](auto state) {
+  row.State.Updater = backend::metrics::MakeSubscriber(row.Node.value().get().GetState(), [&row](auto state) {
     row.State.Display = std::format("{:c}", static_cast<char>(state));
   });
 }
@@ -69,7 +70,7 @@ std::string ColumnUser::GetHeaderText() const { return "User"; }
 void ColumnUser::RegisterRow(ProcessTree::Row& row) const {}
 
 std::string ColumnUser::GetDataText(bool isRowSelected, ProcessTree::Row& row) const {
-  return row.Process.value().get().GetUser();
+  return row.Node.value().get().GetUser();
 }
 
 void ColumnUser::Decorate(::ftxui::TableSelection selection) const {}
@@ -81,7 +82,7 @@ void ColumnUser::Decorate(::ftxui::TableSelection selection) const {}
 std::string ColumnCpu::GetHeaderText() const { return "%CPU"; }
 
 void ColumnCpu::RegisterRow(ProcessTree::Row& row) const {
-  auto& process = row.Process.value().get();
+  auto& process = row.Node.value().get();
   row.Cpu.Updater = backend::metrics::MakeSubscriber(
       std::make_shared<backend::metrics::Ratio>(
           std::make_shared<backend::metrics::CounterSlice>(
@@ -103,7 +104,7 @@ std::string ColumnMem::GetHeaderText() const { return "%MEM"; }
 
 void ColumnMem::RegisterRow(ProcessTree::Row& row) const {
   row.Mem.Updater = backend::metrics::MakeSubscriber(
-      std::make_shared<backend::metrics::Ratio>(row.Process.value().get().GetMem(),
+      std::make_shared<backend::metrics::Ratio>(row.Node.value().get().GetMem(),
                                                 backend::system::SysInfo::GetInstance()->GetTotalMem()),
       [&row](auto mem) { row.Mem.Display = std::format("{:.1f}", mem / 100.0f); });
 }
@@ -119,7 +120,7 @@ void ColumnMem::Decorate(::ftxui::TableSelection selection) const { selection.De
 std::string ColumnTime::GetHeaderText() const { return "Time+"; }
 
 void ColumnTime::RegisterRow(ProcessTree::Row& row) const {
-  auto& process = row.Process.value().get();
+  auto& process = row.Node.value().get();
   row.Time.Updater = backend::metrics::MakeSubscriber(
       std::make_shared<backend::metrics::Plus>(process.GetUserTime(), process.GetSystemTime()), [&row](auto time) {
         row.Time.Display =
@@ -243,7 +244,7 @@ std::string ColumnStart::GetHeaderText() const { return "Start"; }
 void ColumnStart::RegisterRow(ProcessTree::Row& row) const {}
 
 std::string ColumnStart::GetDataText(bool isRowSelected, ProcessTree::Row& row) const {
-  return utils::FormatTime(utils::FromSteadyClock(row.Process.value().get().GetStartTime()));
+  return utils::FormatTime(utils::FromSteadyClock(row.Node.value().get().GetStartTime()));
 }
 
 void ColumnStart::Decorate(::ftxui::TableSelection selection) const {}
@@ -257,7 +258,7 @@ std::string ColumnCommand::GetHeaderText() const { return "Command"; }
 void ColumnCommand::RegisterRow(ProcessTree::Row& row) const {}
 
 std::string ColumnCommand::GetDataText(bool isRowSelected, ProcessTree::Row& row) const {
-  auto& process = row.Process.value().get();
+  auto& process = row.Node.value().get();
   return utils::TreeString(process.GetTreePosition()) + FormatCommand(row.Metrics.GetCommandLine(process));
 }
 

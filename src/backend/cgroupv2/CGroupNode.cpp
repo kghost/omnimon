@@ -41,7 +41,7 @@ void CGroupNode::OnDirectoryDeleteChild(const std::string& name) {
   auto it = _Children.find(name);
   assert(it != _Children.end());
   it->second.NodeDetach();
-  _Children.erase(it);
+  assert(!_Children.contains(name));
 }
 
 void CGroupNode::InitializeChildren() {
@@ -66,18 +66,19 @@ void CGroupNode::InitializeChildren() {
 
 void CGroupNode::TreeDestruct() {
   assert(!_RemovingPublisher->GetValue() && "TreeDestruct should only be called when manager destructs the whole tree");
-  for (auto& [name, child] : _Children) {
-    child.TreeDestruct();
+  while (!_Children.empty()) {
+    _Children.begin()->second.TreeDestruct();
   }
-  _Children.clear();
   NodeDetach();
 }
 
 void CGroupNode::NodeDetach() {
+  assert(_Manager.ContainsNode(*this) && "NodeDetach should only be called for nodes that are still in the tree");
   assert(!_RemovingPublisher->GetValue() && "NodeDetach should only be called once for each node");
   assert(_Children.empty() && "CGroup node should have no children when it is removed from the tree");
   _RemovingPublisher->Update(true);
   if (_Parent.has_value()) {
+    assert(_Manager.ContainsNode(_Parent.value()));
     ClearParent();
   }
   _Manager.DeleteNode(*this);

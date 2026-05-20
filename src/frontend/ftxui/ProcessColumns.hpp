@@ -1,8 +1,9 @@
 #pragma once
 
-#include <ftxui/dom/table.hpp>
 #include <memory>
 #include <string>
+
+#include <ftxui/dom/table.hpp>
 
 #include "ProcessTree.hpp"
 
