@@ -28,7 +28,7 @@ void CGroupTree::Row::UpdateMetrics(CGroupTree& tree) {
   for (auto& [device, ioStat] :
        Metrics.GetIoStats() | std::views::filter([&](auto& pair) { return !IoMetrics.contains(pair.first); })) {
     for (auto& column : tree.GetDiskColumns(device)) {
-      column->RegisterRow(*this);
+      column.RegisterRow(*this);
     }
   }
 }
@@ -136,7 +136,7 @@ void CGroupTree::UpdateData(backend::cgroupv2::CGroupNode& selected,
       Row& row = _Rows.back();
       DiscoverColumns(row);
       for (auto& column : GetAllColumns()) {
-        column->RegisterRow(row);
+        column.RegisterRow(row);
       }
       _Interface.Debug("Showing new CGroup: " + node.get().GetName(), DebugWindow::DebugLevel::Info);
     }
@@ -191,18 +191,18 @@ bool CGroupTree::OnEvent(::ftxui::Event event) {
     return text("Loading...") | center | reflect([this](Box box) { this->OnTableSizeChange(box); });
   }
 
-  auto filterColumn = std::views::filter([](std::unique_ptr<Column>& column) { return column->IsShown; });
+  auto filterColumn = std::views::filter([](const Column& column) { return column.IsShown; });
 
   std::vector<std::vector<std::string>> data;
   data.push_back(GetAllColumns() | filterColumn |
-                 std::views::transform([](auto& column) -> std::string { return column->GetHeaderText(); }) |
+                 std::views::transform([](const Column& column) -> std::string { return column.GetHeaderText(); }) |
                  std::ranges::to<std::vector<std::string>>());
 
   for (auto& row : _Rows) {
     if (row.Node.has_value()) {
-      data.push_back(GetAllColumns() | filterColumn | std::views::transform([&](auto& column) -> std::string {
+      data.push_back(GetAllColumns() | filterColumn | std::views::transform([&](const Column& column) -> std::string {
                        bool isRowSelected = (std::addressof(row) == std::to_address(_CursorRow));
-                       return column->GetDataText(isRowSelected, row);
+                       return column.GetDataText(isRowSelected, row);
                      }) |
                      std::ranges::to<std::vector>());
     }
@@ -211,7 +211,7 @@ bool CGroupTree::OnEvent(::ftxui::Event event) {
   auto table = ::ftxui::Table(data);
 
   for (auto [index, column] : std::views::enumerate(GetAllColumns() | filterColumn)) {
-    column->Decorate(table.SelectColumn(index));
+    column.Decorate(table.SelectColumn(index));
   }
 
   table.SelectAll().DecorateSeparatorVertical(
@@ -367,10 +367,21 @@ CGroupTree::DiskColumnSet::DiskColumnSet(const std::string& disk)
                DiskColumn<[](const std::string& disk) { return "DC[" + disk + "]"; }, &Row::IoMetrics::DiscardCalls,
                           &backend::cgroupv2::CGroupMetrics::IoStatGauges::DiscardCalls>>(_Disk)}) {}
 
+utils::AnyView<CGroupTree::Column&> CGroupTree::DiskColumnSet::GetColumns() {
+  return utils::AnyView<Column&>(std::views::all(_Columns) |
+                                 std::views::transform([](auto& col) -> Column& { return *col; }));
+}
+
 void CGroupTree::DiscoverColumns(Row& row) {
   for (const auto& [disk, gauges] : row.Metrics.GetIoStats()) {
     _IoColumns.try_emplace(disk, DiskColumnSet(disk));
   }
+}
+
+utils::AnyView<CGroupTree::Column&> CGroupTree::GetAllColumns() {
+  return utils::AnyView<Column&>(utils::concat<Column&>(
+      std::views::all(_Columns) | std::views::transform([](auto& col) -> Column& { return *col; }),
+      _IoColumns | std::views::transform([](auto& pair) { return pair.second.GetColumns(); }) | std::views::join));
 }
 
 } // namespace frontend::ftxui

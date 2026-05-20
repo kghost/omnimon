@@ -91,7 +91,7 @@ private:
   class DiskColumnSet {
   public:
     explicit DiskColumnSet(const std::string& disk);
-    auto GetColumns() { return std::views::all(_Columns); }
+    utils::AnyView<Column&> GetColumns();
 
   private:
     const std::string _Disk;
@@ -122,12 +122,8 @@ private:
 
   std::array<std::unique_ptr<Column>, 8> CreateDefaultColumns();
   void DiscoverColumns(Row& row);
-  auto GetAllColumns() {
-    return utils::concat<std::unique_ptr<Column>&>(
-        std::views::all(_Columns),
-        _IoColumns | std::views::transform([](auto& pair) { return pair.second.GetColumns(); }) | std::views::join);
-  }
-  auto GetDiskColumns(const std::string& disk) { return _IoColumns.at(disk).GetColumns(); }
+  utils::AnyView<Column&> GetAllColumns();
+  utils::AnyView<Column&> GetDiskColumns(const std::string& disk) { return _IoColumns.at(disk).GetColumns(); }
 };
 
 } // namespace frontend::ftxui
