@@ -10,9 +10,11 @@
 #include <vector>
 
 #include <ftxui/component/event.hpp>
+#include <ftxui/dom/elements.hpp>
 #include <ftxui/dom/table.hpp>
 #include <ftxui/screen/box.hpp>
 
+#include "ColumnSelector.hpp"
 #include "OmniMonInterface.hpp"
 #include "TabSelector.hpp"
 
@@ -74,6 +76,10 @@ public:
   // FtxuiView overrides
   // ---------------------------------------------------------------------
   bool OnEventImpl(this Impl& self, ::ftxui::Event event) {
+    if (self._ColumnSelector.has_value()) {
+      return self._ColumnSelector->OnEvent(event);
+    }
+
     if (self._Rows.empty()) {
       return false;
     }
@@ -96,6 +102,13 @@ public:
       return true;
     } else if (event == ::ftxui::Event::PageDown) {
       self.MoveCursorAndDraw(self._TableCapacity);
+      return true;
+    } else if (event == ::ftxui::Event::Character('c')) {
+      self._ColumnSelector.emplace(
+          [&self]() { self._ColumnSelector.reset(); },
+          self.GetAllColumns() | std::views::transform([](auto& c) -> ColumnSelector::SelectorItem {
+            return {c.GetHeaderText(), c.IsShown};
+          }) | std::ranges::to<std::vector>());
       return true;
     }
     return false;
@@ -130,7 +143,12 @@ public:
         ::ftxui::size(::ftxui::WidthOrHeight::WIDTH, ::ftxui::Constraint::EQUAL, 1));
     table.SelectRow(0).Decorate(bold);
     table.SelectRow(0).Decorate(underlined);
-    return table.Render() | frame | reflect([&self](Box box) { self.OnTableSizeChange(box); });
+    auto tableElement = table.Render() | frame | reflect([&self](Box box) { self.OnTableSizeChange(box); });
+
+    if (self._ColumnSelector.has_value()) {
+      return dbox({tableElement, self._ColumnSelector->Render()});
+    }
+    return tableElement;
   }
 
   void OnRowRemoving(RowType& row) {
@@ -255,6 +273,8 @@ protected:
   OmniMonInterface& _Interface;
   static constexpr ssize_t kHeaderHeight = 1;
   ssize_t _TableCapacity = 0;
+
+  std::optional<ColumnSelector> _ColumnSelector;
 
   std::list<RowType> _Rows;
   typename std::list<RowType>::iterator _CursorRow = _Rows.end();
