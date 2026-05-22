@@ -99,3 +99,7 @@ We use `.clang-format` based on `LLVM` style with specific customizations. Key r
 
   } // namespace frontend::ftxui
   ```
+
+## 6. Others
+
+- Prefer std::array over C-style array.

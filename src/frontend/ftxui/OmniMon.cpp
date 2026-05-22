@@ -25,7 +25,8 @@ OmniMon::OmniMon()
       _Tick(std::make_shared<backend::metrics::SimplePublisher<int>>()), _Timer(_Loop, *this),
       _Screen(::ftxui::App::FullscreenAlternateScreen()), _DebugWindow(std::make_unique<DebugWindow>(*this)),
       _ActiveView(TabSelector::GetDefaultTab()->CreateView(*this)) {
-  _Screen.TrackMouse(false); // Disables mouse tracking
+  _Screen.TrackMouse(false);
+  _Screen.CatchSignals(false);
   Debug("OmniMon TUI started.", DebugWindow::DebugLevel::Info);
   Debug("Press ` (backtick) to toggle this debug console.", DebugWindow::DebugLevel::Info);
 }

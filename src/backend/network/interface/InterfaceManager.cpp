@@ -5,7 +5,6 @@
 #include <fcntl.h>
 #include <linux/rtnetlink.h>
 #include <memory>
-#include <net/if.h>
 #include <stdexcept>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -65,7 +64,7 @@ void InterfaceManager::OnWrite() { throw std::runtime_error("InterfaceManager::O
 void InterfaceManager::ProcessLinkMessage(struct nlmsghdr* nlh) {
   if (nlh->nlmsg_type == RTM_DELLINK) {
     struct ifinfomsg* ifi = reinterpret_cast<struct ifinfomsg*>(NLMSG_DATA(nlh));
-    unsigned int ifIndex = ifi->ifi_index;
+    int ifIndex = ifi->ifi_index;
     auto it = _Interfaces.find(ifIndex);
     if (it != _Interfaces.end()) {
       auto iface = it->second;
@@ -74,18 +73,18 @@ void InterfaceManager::ProcessLinkMessage(struct nlmsghdr* nlh) {
     }
   } else if (nlh->nlmsg_type == RTM_NEWLINK) {
     struct ifinfomsg* ifi = reinterpret_cast<struct ifinfomsg*>(NLMSG_DATA(nlh));
-    unsigned int ifIndex = ifi->ifi_index;
+    int ifIndex = ifi->ifi_index;
 
     char* rta = reinterpret_cast<char*>(ifi) + NLMSG_ALIGN(sizeof(struct ifinfomsg));
     int rtaLen = nlh->nlmsg_len - NLMSG_LENGTH(sizeof(struct ifinfomsg));
 
     auto [it, ok] = _Interfaces.try_emplace(ifIndex, utils::Lazy<std::shared_ptr<Interface>>([&] {
-                                              return std::make_shared<Interface>(ifIndex, rta, rtaLen);
+                                              return std::make_shared<Interface>(ifi, ifIndex, rta, rtaLen);
                                             }));
     if (ok) {
       _Callback.OnInterfaceCreated(it->second);
     } else {
-      it->second->UpdateFromNetlink(rta, rtaLen);
+      it->second->UpdateFromNetlink(ifi, rta, rtaLen);
       _Callback.OnInterfaceChanged(it->second);
     }
   }
@@ -94,7 +93,7 @@ void InterfaceManager::ProcessLinkMessage(struct nlmsghdr* nlh) {
 void InterfaceManager::ProcessAddressMessage(struct nlmsghdr* nlh) {
   if (nlh->nlmsg_type == RTM_NEWADDR || nlh->nlmsg_type == RTM_DELADDR) {
     struct ifaddrmsg* ifa = reinterpret_cast<struct ifaddrmsg*>(NLMSG_DATA(nlh));
-    unsigned int ifIndex = ifa->ifa_index;
+    int ifIndex = ifa->ifa_index;
 
     char* rta = reinterpret_cast<char*>(ifa) + NLMSG_ALIGN(sizeof(struct ifaddrmsg));
     int rtaLen = nlh->nlmsg_len - NLMSG_LENGTH(sizeof(struct ifaddrmsg));

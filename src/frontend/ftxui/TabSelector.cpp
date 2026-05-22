@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "CGroupTree.hpp"
+#include "NetworkInterfacesTab.hpp"
 #include "OmniMonInterface.hpp"
 #include "PlaceholderTab.hpp"
 #include "ProcessTree.hpp"
@@ -29,6 +30,15 @@ public:
   }
 };
 
+class NetworkInterfacesTabChoice : public TabChoice {
+public:
+  std::string GetName() const override { return kNetworkInterfacesTabName; }
+
+  std::unique_ptr<FtxuiTabView> CreateView(OmniMonInterface& interface) const override {
+    return std::make_unique<NetworkInterfacesTab>(interface);
+  }
+};
+
 class PlaceholderTabChoice : public TabChoice {
 public:
   std::string GetName() const override { return kPlaceholderTabName; }
@@ -43,6 +53,7 @@ TabSelector::TabSelector(TabSelector::OnTabSelected onTabSelected, TabSelector::
     : _OnTabSelected(std::move(onTabSelected)), _OnTabSelectorClosed(std::move(onTabSelectorClosed)) {
   _Tabs.push_back(std::make_shared<ProcessTreeTabChoice>());
   _Tabs.push_back(std::make_shared<CGroupTabChoice>());
+  _Tabs.push_back(std::make_shared<NetworkInterfacesTabChoice>());
   _Tabs.push_back(std::make_shared<PlaceholderTabChoice>());
 
   _Cursor = std::find_if(_Tabs.begin(), _Tabs.end(),

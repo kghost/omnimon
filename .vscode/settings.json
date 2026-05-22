@@ -65,5 +65,4 @@
         "variant": "cpp"
     },
     "cmake.modifyLists.addNewSourceFiles": "no",
-    "cmake.ctest.testExplorerIntegrationEnabled": true
 }

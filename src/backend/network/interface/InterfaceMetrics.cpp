@@ -28,7 +28,7 @@ InterfaceMetrics::InterfaceMetrics(Interface& interface)
 void InterfaceMetrics::Update() {
   _LastUpdate = std::chrono::steady_clock::now();
 
-  unsigned int ifIndex = _Interface.GetIfIndex();
+  int ifIndex = _Interface.GetIfIndex();
   if (ifIndex == 0) {
     return;
   }
@@ -70,7 +70,7 @@ void InterfaceMetrics::Update() {
 
 void InterfaceMetrics::UpdateFromNetlink(struct ifinfomsg* ifi, char* rta, int rtaLen) {
   _LastUpdate = std::chrono::steady_clock::now();
-  _Interface.UpdateFromNetlink(rta, rtaLen);
+  _Interface.UpdateFromNetlink(ifi, rta, rtaLen);
 
   bool hasStats = false;
   for (struct rtattr* rtaPtr : EnumerateRtas(rta, rtaLen)) {

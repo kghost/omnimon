@@ -26,7 +26,7 @@ TEST(BasicTest, BasicDiscovery) {
   const auto& interfaces = manager.GetInterfaces();
 
   EXPECT_FALSE(interfaces.empty());
-  unsigned int loIndex = if_nametoindex("lo");
+  int loIndex = if_nametoindex("lo");
   EXPECT_NE(loIndex, 0u);
 
   auto it = interfaces.find(loIndex);
@@ -35,8 +35,8 @@ TEST(BasicTest, BasicDiscovery) {
     EXPECT_EQ(lo->GetName(), "lo");
     EXPECT_GT(lo->GetMtu(), 0u);
     EXPECT_FALSE(lo->GetMacAddress().empty());
-    std::cout << "lo IPv4: " << lo->GetPrimaryIpV4() << std::endl;
-    std::cout << "lo IPv6: " << lo->GetPrimaryIpV6() << std::endl;
+    std::cout << "lo IPv4: " << ToString(lo->GetPrimaryIpV4()) << std::endl;
+    std::cout << "lo IPv6: " << ToString(lo->GetPrimaryIpV6()) << std::endl;
   }
 }
 

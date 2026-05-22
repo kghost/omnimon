@@ -55,11 +55,11 @@ find_path(KERNELHEADERS_DIR linux/user.h
 message(STATUS "Kernel release: ${KERNEL_RELEASE}")
 message(STATUS "Kernel headers: ${KERNELHEADERS_DIR}")
 
-find_package(PkgConfig REQUIRED)
-
 project(OmniMon)
 
 enable_testing()
+
+find_package(PkgConfig REQUIRED)
 find_package(GTest REQUIRED)
 
 add_subdirectory(external/ftxui)

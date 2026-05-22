@@ -28,7 +28,7 @@ public:
   void OnRead() override;
   void OnWrite() override;
 
-  const std::map<unsigned int, std::shared_ptr<Interface>>& GetInterfaces() const { return _Interfaces; }
+  const std::map<int, std::shared_ptr<Interface>>& GetInterfaces() const { return _Interfaces; }
 
 private:
   void InitializeList();
@@ -36,7 +36,7 @@ private:
   void ProcessAddressMessage(struct nlmsghdr* nlh);
 
   InterfaceCallback& _Callback;
-  std::map<unsigned int, std::shared_ptr<Interface>> _Interfaces;
+  std::map<int, std::shared_ptr<Interface>> _Interfaces;
 };
 
 } // namespace backend::network::interface

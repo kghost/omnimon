@@ -22,11 +22,11 @@ int main() {
   for (const auto& [ifIndex, iface] : interfaces) {
     std::cout << "Interface: " << iface->GetName() << std::endl;
     std::cout << "  Index:     " << iface->GetIfIndex() << std::endl;
-    std::cout << "  MAC:       " << iface->GetMacAddress() << std::endl;
-    std::cout << "  IPv4:      " << iface->GetPrimaryIpV4() << std::endl;
-    std::cout << "  IPv6:      " << iface->GetPrimaryIpV6() << std::endl;
-    std::cout << "  OperState: " << iface->GetOperState() << std::endl;
-    std::cout << "  Duplex:    " << iface->GetDuplex() << std::endl;
+    std::cout << "  MAC:       " << backend::network::interface::ToString(iface->GetMacAddress(), iface->GetIfType()) << std::endl;
+    std::cout << "  IPv4:      " << backend::network::interface::ToString(iface->GetPrimaryIpV4()) << std::endl;
+    std::cout << "  IPv6:      " << backend::network::interface::ToString(iface->GetPrimaryIpV6()) << std::endl;
+    std::cout << "  OperState: " << backend::network::interface::ToString(iface->GetOperState()) << std::endl;
+    std::cout << "  Duplex:    " << backend::network::interface::ToString(iface->GetDuplex()) << std::endl;
     std::cout << "  Speed:     " << iface->GetSpeed() << " Mbps" << std::endl;
     std::cout << "  MTU:       " << iface->GetMtu() << std::endl;
     std::cout << "-------------------------------------" << std::endl;

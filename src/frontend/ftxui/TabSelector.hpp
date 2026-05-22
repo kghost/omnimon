@@ -18,6 +18,7 @@ namespace frontend::ftxui {
 
 constexpr const char* kProcessTreeTabName = "Process Tree";
 constexpr const char* kCGroupV2TabName = "CGroup v2";
+constexpr const char* kNetworkInterfacesTabName = "Network Interfaces";
 constexpr const char* kPlaceholderTabName = "Placeholder";
 
 class FtxuiTabView : public FtxuiView {

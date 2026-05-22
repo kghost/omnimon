@@ -39,7 +39,7 @@ std::string FormatTcHandle(uint32_t handle) {
 TrafficControlMetrics::TrafficControlMetrics(const Interface& interface) : _Interface(interface) {}
 
 void TrafficControlMetrics::Update() {
-  unsigned int ifIndex = _Interface.GetIfIndex();
+  int ifIndex = _Interface.GetIfIndex();
   _TcClasses.clear();
   if (ifIndex == 0) {
     return;
