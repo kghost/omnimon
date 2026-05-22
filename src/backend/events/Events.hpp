@@ -26,6 +26,8 @@ public:
   virtual void OnRead() = 0;
   virtual void OnWrite() = 0;
 
+  int GetFileDescriptor() const { return _Fd; }
+
 protected:
   friend class EventLoop;
   void OnEvent(uint32_t events);

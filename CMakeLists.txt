@@ -59,5 +59,9 @@ find_package(PkgConfig REQUIRED)
 
 project(OmniMon)
 
+enable_testing()
+find_package(GTest REQUIRED)
+
 add_subdirectory(external/ftxui)
 add_subdirectory(src)
+

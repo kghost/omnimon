@@ -51,7 +51,7 @@ We use `.clang-format` based on `LLVM` style with specific customizations. Key r
 - **Header Guard:** Always use `#pragma once` at the top of header files.
 - **Includes Ordering & Spacing:**
   - Group `#include` lines and separate them with a single blank line:
-    1. The primary header associated with the file (in `.cpp` files).
+    1. The corresponding header associated with the cpp file (in `.cpp` files, the header with same file name as cpp file).
     2. C++ Standard Library headers in alphabetical order.
     3. External dependencies (e.g. `<ftxui/...>`) in alphabetical order.
     4. Internal project headers using relative paths (e.g. `"../../backend/process/Process.hpp"`).

@@ -34,7 +34,7 @@ protected:
   const std::string _Name;
 };
 
-class CGroupNode : public CGroupNodeBase, public events::DirectoryWatchDescriptor {
+class CGroupNode final : public CGroupNodeBase, public events::DirectoryWatchDescriptor {
   // Extract CGroupNodeBase class because DirectoryWatchDescriptor must be initialized after _Parent and _Name.
 public:
   explicit CGroupNode(CGroupManager& manager);
