@@ -5,11 +5,6 @@
 
 namespace backend::system {
 
-std::shared_ptr<SysInfo> SysInfo::GetInstance() {
-  static std::shared_ptr<SysInfo> instance(std::make_shared<SysInfo>());
-  return instance;
-}
-
 std::shared_ptr<metrics::Gauge> SysInfo::GetSystemJiffies() {
   if (!_SystemJiffies) {
     _SystemJiffies.reset(new SysConstGauge(sysconf(_SC_CLK_TCK)));

@@ -1,4 +1,4 @@
-#include "DebugWindow.hpp"
+#include "LogWindow.hpp"
 
 #include <algorithm>
 
@@ -6,29 +6,29 @@
 
 namespace frontend::ftxui {
 
-DebugWindow::DebugWindow(OmniMonInterface& interface) : _Interface(interface) {}
+LogWindow::LogWindow(OmniMonInterface& omniMon) : _OmniMon(omniMon) {}
 
-void DebugWindow::Log(std::string msg, DebugWindow::DebugLevel level) {
+void LogWindow::Log(std::string msg, LogWindow::LogLevel level) {
   std::string prefix;
   switch (level) {
-  case DebugLevel::Info:
+  case LogLevel::Info:
     prefix = "[INFO] ";
     break;
-  case DebugLevel::Warning:
+  case LogLevel::Warning:
     prefix = "[WARN] ";
     break;
-  case DebugLevel::Error:
+  case LogLevel::Error:
     prefix = "[ERROR] ";
     break;
-  case DebugLevel::Debug:
-    prefix = "[DEBUG] ";
+  case LogLevel::Log:
+    prefix = "[Log] ";
     break;
   }
-  _Messages.Push(DebugWindow::LogMessage{prefix + std::move(msg), level});
-  _Interface.ScheduleRefresh();
+  _Messages.Push(LogWindow::LogMessage{prefix + std::move(msg), level});
+  _OmniMon.ScheduleRefresh();
 }
 
-void DebugWindow::Toggle() {
+void LogWindow::Toggle() {
   if (_Visible == State::Show) {
     _Visible = State::Hide;
   } else {
@@ -38,7 +38,7 @@ void DebugWindow::Toggle() {
   }
 }
 
-void DebugWindow::ToggleFloating() {
+void LogWindow::ToggleFloating() {
   if (_Visible == State::Floating) {
     _Visible = State::Hide;
   } else {
@@ -48,9 +48,9 @@ void DebugWindow::ToggleFloating() {
   }
 }
 
-bool DebugWindow::IsVisible() const { return _Visible != State::Hide; }
+bool LogWindow::IsVisible() const { return _Visible != State::Hide; }
 
-bool DebugWindow::OnEvent(::ftxui::Event event) {
+bool LogWindow::OnEvent(::ftxui::Event event) {
   using namespace ::ftxui;
 
   if (event == Event::Character('`')) {
@@ -109,13 +109,13 @@ bool DebugWindow::OnEvent(::ftxui::Event event) {
     return true;
   }
 
-  return true; // Consume other events in debug window when visible
+  return true; // Consume other events in Log window when visible
 }
 
-::ftxui::Element DebugWindow::Render() {
+::ftxui::Element LogWindow::Render() {
   using namespace ::ftxui;
 
-  std::vector<DebugWindow::LogMessage> msgs = _Messages.ToVector();
+  std::vector<LogWindow::LogMessage> msgs = _Messages.ToVector();
 
   int visible_height = (_Visible == State::Floating) ? 5 : 15;
   int max_scroll = std::max(0, (int)msgs.size() - visible_height);
@@ -140,16 +140,16 @@ bool DebugWindow::OnEvent(::ftxui::Event event) {
     const auto& msg = msgs[i];
     Element msg_el = text(msg.Text);
     switch (msg.Level) {
-    case DebugLevel::Error:
+    case LogLevel::Error:
       msg_el = msg_el | color(Color::Red);
       break;
-    case DebugLevel::Warning:
+    case LogLevel::Warning:
       msg_el = msg_el | color(Color::Yellow);
       break;
-    case DebugLevel::Info:
+    case LogLevel::Info:
       msg_el = msg_el | color(Color::Green);
       break;
-    case DebugLevel::Debug:
+    case LogLevel::Log:
       msg_el = msg_el | color(Color::Cyan);
       break;
     }
@@ -157,7 +157,7 @@ bool DebugWindow::OnEvent(::ftxui::Event event) {
   }
 
   if (message_elements.empty()) {
-    message_elements.push_back(text("No debug messages collected.") | dim | center);
+    message_elements.push_back(text("No Log messages collected.") | dim | center);
   }
 
   while ((int)message_elements.size() < visible_height) {
@@ -165,7 +165,7 @@ bool DebugWindow::OnEvent(::ftxui::Event event) {
   }
 
   if (_Visible == State::Floating) {
-    Element title = hbox({text(" Debug (Realtime) ") | bold | color(Color::Cyan)});
+    Element title = hbox({text(" Log (Realtime) ") | bold | color(Color::Cyan)});
     Element float_el = window(title, vbox(std::move(message_elements))) | size(WIDTH, EQUAL, 55) |
                        size(HEIGHT, EQUAL, 7) | clear_under;
     return vbox({filler(), hbox({filler(), float_el})});
@@ -179,7 +179,7 @@ bool DebugWindow::OnEvent(::ftxui::Event event) {
       }
     }
 
-    Element title = hbox({text(" OmniMon Debug Console ") | bold | color(Color::Yellow), text(scroll_status) | dim});
+    Element title = hbox({text(" OmniMon Log Console ") | bold | color(Color::Yellow), text(scroll_status) | dim});
 
     Element footer = hbox({text(" [`/Esc] Close ") | bold | color(Color::Green), separatorLight(),
                            text(" [↑/↓] Scroll ") | bold | color(Color::Green), separatorLight(),

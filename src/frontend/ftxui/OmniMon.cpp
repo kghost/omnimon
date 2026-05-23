@@ -4,7 +4,7 @@
 #include <ftxui/dom/elements.hpp>
 
 #include "../../backend/metrics/Binding.hpp"
-#include "DebugWindow.hpp"
+#include "LogWindow.hpp"
 #include "TabSelector.hpp"
 
 namespace frontend::ftxui {
@@ -23,12 +23,12 @@ void DeferredRender::OnNotification(uint64_t amount) { _OmniMon.Refresh(); }
 OmniMon::OmniMon()
     : _Loop(), _SigInt(_Loop), _SigWinChange(_Loop, *this), _DeferredRender(_Loop, *this), _StdIO(_Loop, *this),
       _Tick(std::make_shared<backend::metrics::SimplePublisher<int>>()), _Timer(_Loop, *this),
-      _Screen(::ftxui::App::FullscreenAlternateScreen()), _DebugWindow(std::make_unique<DebugWindow>(*this)),
+      _Screen(::ftxui::App::FullscreenAlternateScreen()), _LogWindow(std::make_unique<LogWindow>(*this)),
       _ActiveView(TabSelector::GetDefaultTab()->CreateView(*this)) {
   _Screen.TrackMouse(false);
   _Screen.CatchSignals(false);
-  Debug("OmniMon TUI started.", DebugWindow::DebugLevel::Info);
-  Debug("Press ` (backtick) to toggle this debug console.", DebugWindow::DebugLevel::Info);
+  Log("OmniMon TUI started.", LogWindow::LogLevel::Info);
+  Log("Press ` (backtick) to toggle this Log console.", LogWindow::LogLevel::Info);
 }
 
 void OmniMon::HandleWinChangeSignal() { Refresh(); }
@@ -52,8 +52,8 @@ void OmniMon::Run() {
     if (_TabSelector.has_value()) {
       stacks.emplace_back(_TabSelector.value()->Render());
     }
-    if (_DebugWindow->IsVisible()) {
-      stacks.emplace_back(_DebugWindow->Render());
+    if (_LogWindow->IsVisible()) {
+      stacks.emplace_back(_LogWindow->Render());
     }
     return dbox(std::move(stacks));
   });
@@ -63,7 +63,7 @@ void OmniMon::Run() {
       return true;
     }
 
-    if (_DebugWindow->OnEvent(event)) {
+    if (_LogWindow->OnEvent(event)) {
       return true;
     }
 
@@ -78,7 +78,7 @@ void OmniMon::Run() {
             [this](std::shared_ptr<TabChoice> choice) {
               if (choice->GetName() != _ActiveView->GetTabName()) {
                 _ActiveView = choice->CreateView(*this);
-                Debug("Switched active view to: " + choice->GetName(), DebugWindow::DebugLevel::Info);
+                Log("Switched active view to: " + choice->GetName(), LogWindow::LogLevel::Info);
               }
               _TabSelector.reset();
             },
@@ -105,7 +105,7 @@ void OmniMon::Stop() { _Loop.Stop(); }
 
 void OmniMon::ScheduleRefresh() { _DeferredRender.Notify(1); }
 
-void OmniMon::Debug(std::string msg, DebugWindow::DebugLevel level) { _DebugWindow->Log(std::move(msg), level); }
+void OmniMon::Log(std::string msg, LogWindow::LogLevel level) { _LogWindow->Log(std::move(msg), level); }
 
 backend::events::EventLoop& OmniMon::GetLoop() { return _Loop; }
 

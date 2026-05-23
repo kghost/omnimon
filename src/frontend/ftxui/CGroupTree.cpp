@@ -8,7 +8,6 @@
 
 #include "../../utils/Clock.hpp"
 #include "../../utils/Formatter.hpp"
-#include "DebugWindow.hpp"
 
 namespace frontend::ftxui {
 
@@ -32,9 +31,8 @@ void CGroupRow::UpdateMetrics(CGroupTree& tree) {
   }
 }
 
-CGroupTree::CGroupTree(OmniMonInterface& interface)
-    : TableBase(interface, [this](auto) { Update(); }), _Manager(interface.GetLoop()),
-      _Columns(CreateDefaultColumns()) {}
+CGroupTree::CGroupTree(OmniMonInterface& omniMon)
+    : TableBase(omniMon, [this](auto) { Update(); }), _Manager(omniMon.GetLoop()), _Columns(CreateDefaultColumns()) {}
 
 std::string CGroupTree::GetTabName() const { return kCGroupV2TabName; }
 

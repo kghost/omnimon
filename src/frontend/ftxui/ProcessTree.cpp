@@ -13,8 +13,8 @@ ProcessRow::ProcessRow(ProcessTree& tree, backend::process::Process& process)
       })),
       Metrics(process) {}
 
-ProcessTree::ProcessTree(OmniMonInterface& interface)
-    : TableBase(interface, [this](auto) { Update(); }), _Columns(CreateDefaultColumns()) {}
+ProcessTree::ProcessTree(OmniMonInterface& omniMon)
+    : TableBase(omniMon, [this](auto) { Update(); }), _Columns(CreateDefaultColumns()) {}
 
 std::string ProcessTree::GetTabName() const { return kProcessTreeTabName; }
 

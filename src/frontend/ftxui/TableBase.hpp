@@ -62,8 +62,8 @@ public:
     bool IsShown = true;
   };
 
-  explicit TableBase(OmniMonInterface& interface, std::function<void(int)> onTick)
-      : _Interface(interface), _CursorRow(_Rows.end()), _TickUpdater(_Interface.OnTickUpdate(onTick)) {}
+  explicit TableBase(OmniMonInterface& omniMon, std::function<void(int)> onTick)
+      : _OmniMon(omniMon), _CursorRow(_Rows.end()), _TickUpdater(omniMon.OnTickUpdate(onTick)) {}
   ~TableBase() override = default;
 
   // Disallow copying/moving.
@@ -71,6 +71,8 @@ public:
   TableBase& operator=(const TableBase&) = delete;
   TableBase(TableBase&&) = delete;
   TableBase& operator=(TableBase&&) = delete;
+
+  OmniMonInterface& GetOmniMon() { return _OmniMon; }
 
   // ---------------------------------------------------------------------
   // FtxuiView overrides
@@ -185,7 +187,7 @@ public:
   }
 
   void UpdateData(this Impl& self, NodeType& selected, std::vector<std::reference_wrapper<NodeType>> nodes) {
-    self._Interface.Debug("UpdateData", DebugWindow::DebugLevel::Debug);
+    self._OmniMon.Log("UpdateData", LogWindow::LogLevel::Log);
     assert(std::ranges::contains(nodes, selected));
 
     std::list<RowType> oldRows;
@@ -266,11 +268,11 @@ protected:
     if (newCapacity > 0 && newCapacity != self._TableCapacity) {
       self._TableCapacity = newCapacity;
       self.Update();
-      self._Interface.ScheduleRefresh();
+      self._OmniMon.ScheduleRefresh();
     }
   }
 
-  OmniMonInterface& _Interface;
+  OmniMonInterface& _OmniMon;
   static constexpr ssize_t kHeaderHeight = 1;
   ssize_t _TableCapacity = 0;
 

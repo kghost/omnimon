@@ -43,7 +43,7 @@ public:
 
 class ProcessTree : public TableBase<ProcessTree, ProcessRow, backend::process::Process> {
 public:
-  explicit ProcessTree(OmniMonInterface& interface);
+  explicit ProcessTree(OmniMonInterface& omniMon);
   ~ProcessTree() override = default;
 
   std::string GetTabName() const override;

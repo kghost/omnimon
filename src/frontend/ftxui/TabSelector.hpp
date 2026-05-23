@@ -33,7 +33,7 @@ class TabChoice {
 public:
   virtual ~TabChoice() = default;
   virtual std::string GetName() const = 0;
-  virtual std::unique_ptr<FtxuiTabView> CreateView(OmniMonInterface& interface) const = 0;
+  virtual std::unique_ptr<FtxuiTabView> CreateView(OmniMonInterface& omniMon) const = 0;
 };
 
 class TabSelector : public FtxuiView {

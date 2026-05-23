@@ -33,21 +33,21 @@ private:
 
 class OmniMonInterface;
 
-class DebugWindow {
+class LogWindow {
 public:
-  enum class DebugLevel { Info, Warning, Error, Debug };
+  enum class LogLevel { Info, Warning, Error, Log };
 
   struct LogMessage {
     std::string Text;
-    DebugLevel Level;
+    LogLevel Level;
   };
 
   enum class State { Hide, Show, Floating };
 
-  explicit DebugWindow(OmniMonInterface& interface);
-  ~DebugWindow() = default;
+  explicit LogWindow(OmniMonInterface& omniMon);
+  ~LogWindow() = default;
 
-  void Log(std::string msg, DebugLevel level = DebugLevel::Info);
+  void Log(std::string msg, LogLevel level = LogLevel::Info);
   void Toggle();
   void ToggleFloating();
   bool IsVisible() const;
@@ -60,7 +60,7 @@ private:
   State _Visible = State::Hide;
   int _ScrollOffset = 0;
   bool _AutoScroll = true;
-  OmniMonInterface& _Interface;
+  OmniMonInterface& _OmniMon;
 };
 
 } // namespace frontend::ftxui

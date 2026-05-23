@@ -16,8 +16,8 @@ class ProcessTreeTabChoice : public TabChoice {
 public:
   std::string GetName() const override { return kProcessTreeTabName; }
 
-  std::unique_ptr<FtxuiTabView> CreateView(OmniMonInterface& interface) const override {
-    return std::make_unique<ProcessTree>(interface);
+  std::unique_ptr<FtxuiTabView> CreateView(OmniMonInterface& omniMon) const override {
+    return std::make_unique<ProcessTree>(omniMon);
   }
 };
 
@@ -25,8 +25,8 @@ class CGroupTabChoice : public TabChoice {
 public:
   std::string GetName() const override { return kCGroupV2TabName; }
 
-  std::unique_ptr<FtxuiTabView> CreateView(OmniMonInterface& interface) const override {
-    return std::make_unique<CGroupTree>(interface);
+  std::unique_ptr<FtxuiTabView> CreateView(OmniMonInterface& omniMon) const override {
+    return std::make_unique<CGroupTree>(omniMon);
   }
 };
 
@@ -34,8 +34,8 @@ class NetworkInterfacesTabChoice : public TabChoice {
 public:
   std::string GetName() const override { return kNetworkInterfacesTabName; }
 
-  std::unique_ptr<FtxuiTabView> CreateView(OmniMonInterface& interface) const override {
-    return std::make_unique<NetworkInterfacesTab>(interface);
+  std::unique_ptr<FtxuiTabView> CreateView(OmniMonInterface& omniMon) const override {
+    return std::make_unique<NetworkInterfacesTab>(omniMon);
   }
 };
 
@@ -43,7 +43,7 @@ class PlaceholderTabChoice : public TabChoice {
 public:
   std::string GetName() const override { return kPlaceholderTabName; }
 
-  std::unique_ptr<FtxuiTabView> CreateView(OmniMonInterface& interface) const override {
+  std::unique_ptr<FtxuiTabView> CreateView(OmniMonInterface& omniMon) const override {
     return std::make_unique<PlaceholderTab>();
   }
 };

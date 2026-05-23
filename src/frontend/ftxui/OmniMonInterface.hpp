@@ -4,7 +4,8 @@
 #include <memory>
 #include <string>
 
-#include "DebugWindow.hpp"
+#include "../../backend/system/SysInfo.hpp"
+#include "LogWindow.hpp"
 
 namespace backend::events {
 class EventLoop;
@@ -20,9 +21,11 @@ class OmniMonInterface {
 public:
   virtual ~OmniMonInterface() = default;
   virtual void ScheduleRefresh() = 0;
-  virtual void Debug(std::string msg, DebugWindow::DebugLevel level = DebugWindow::DebugLevel::Info) = 0;
+  virtual void Log(std::string msg, LogWindow::LogLevel level = LogWindow::LogLevel::Info) = 0;
   virtual backend::events::EventLoop& GetLoop() = 0;
   virtual std::shared_ptr<backend::metrics::SubscriberBase> OnTickUpdate(std::function<void(int)> callback) = 0;
+
+  virtual backend::system::SysInfo& GetSysInfo() = 0;
 };
 
 } // namespace frontend::ftxui

@@ -12,7 +12,8 @@
 
 #include "../../backend/events/Events.hpp"
 #include "../../backend/metrics/SimplePublisher.hpp"
-#include "DebugWindow.hpp"
+#include "../../backend/system/SysInfo.hpp"
+#include "LogWindow.hpp"
 #include "OmniMonInterface.hpp"
 #include "Options.hpp"
 #include "TabSelector.hpp"
@@ -89,9 +90,10 @@ public:
   void Refresh();
 
   void ScheduleRefresh() override;
-  void Debug(std::string msg, DebugWindow::DebugLevel level = DebugWindow::DebugLevel::Info) override;
+  void Log(std::string msg, LogWindow::LogLevel level = LogWindow::LogLevel::Info) override;
   backend::events::EventLoop& GetLoop() override;
   std::shared_ptr<backend::metrics::SubscriberBase> OnTickUpdate(std::function<void(int)> callback) override;
+  backend::system::SysInfo& GetSysInfo() override { return _SysInfo; }
 
   void Run();
   void Stop();
@@ -105,10 +107,11 @@ private:
 
   std::shared_ptr<backend::metrics::SimplePublisher<int>> _Tick;
   Timer _Timer;
+  backend::system::SysInfo _SysInfo;
 
   ::ftxui::App _Screen;
   std::unique_ptr<::ftxui::Loop> _FtxuiLoop;
-  std::unique_ptr<DebugWindow> _DebugWindow;
+  std::unique_ptr<LogWindow> _LogWindow;
   std::unique_ptr<FtxuiTabView> _ActiveView;
   std::optional<std::unique_ptr<TabSelector>> _TabSelector;
 };

@@ -55,7 +55,7 @@ public:
 
 class CGroupTree : public TableBase<CGroupTree, CGroupRow, backend::cgroupv2::CGroupNode> {
 public:
-  explicit CGroupTree(OmniMonInterface& interface);
+  explicit CGroupTree(OmniMonInterface& omniMon);
   ~CGroupTree() override = default;
 
   std::string GetTabName() const override;

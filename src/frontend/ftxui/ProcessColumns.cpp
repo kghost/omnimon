@@ -88,7 +88,7 @@ void ColumnCpu::RegisterRow(ProcessTree::Row& row) const {
           std::make_shared<backend::metrics::CounterSlice>(
               std::make_shared<backend::metrics::Plus>(process.GetUserTime(), process.GetSystemTime()),
               Config::GetInstance().RefreshInterval),
-          backend::system::SysInfo::GetInstance()->GetSystemJiffies()),
+          row.Table.GetOmniMon().GetSysInfo().GetSystemJiffies()),
       [&row](auto cpu) { row.Cpu.Display = std::format("{:.1f}", cpu / 100.0f); });
 }
 
@@ -105,7 +105,7 @@ std::string ColumnMem::GetHeaderText() const { return "%MEM"; }
 void ColumnMem::RegisterRow(ProcessTree::Row& row) const {
   row.Mem.Updater = backend::metrics::MakeSubscriber(
       std::make_shared<backend::metrics::Ratio>(row.Node.value().get().GetMem(),
-                                                backend::system::SysInfo::GetInstance()->GetTotalMem()),
+                                                row.Table.GetOmniMon().GetSysInfo().GetTotalMem()),
       [&row](auto mem) { row.Mem.Display = std::format("{:.1f}", mem / 100.0f); });
 }
 
