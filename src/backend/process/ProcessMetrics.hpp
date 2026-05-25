@@ -13,7 +13,7 @@ using GaugePtr = std::shared_ptr<backend::metrics::Gauge>;
 
 class Process;
 
-class ProcessMetrics final : public metrics::SharedPublisherOwner {
+class ProcessMetrics final : public metrics::LastUpdateOwner {
 public:
   explicit ProcessMetrics(Process& process);
   ~ProcessMetrics() override = default;

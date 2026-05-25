@@ -4,7 +4,7 @@
 
 namespace backend::metrics {
 
-template <typename T> class SimplePublisher : public Publisher {
+template <typename T> class SimplePublisher final : public Publisher {
 public:
   explicit SimplePublisher() = default;
   explicit SimplePublisher(T value) : _Value(value) {}

@@ -8,21 +8,6 @@
 
 namespace backend::metrics {
 
-class FautyCounter : public SimpleGauge {
-public:
-  DataType GetValue() const override { return _Value + _Missed; }
-
-  void Reset(DataType value = 0) {
-    _Missed += _Value;
-    _Value = value;
-    _LastUpdate = std::chrono::steady_clock::now();
-    Notify();
-  }
-
-private:
-  DataType _Missed;
-};
-
 class CounterSlice : public Gauge, public SubscriberBase {
 public:
   explicit CounterSlice(std::shared_ptr<Gauge> target, std::chrono::steady_clock::duration period)

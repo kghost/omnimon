@@ -12,7 +12,7 @@ namespace backend::network::interface {
 
 class Interface;
 
-class InterfaceMetrics : public metrics::SharedPublisherOwner {
+class InterfaceMetrics : public metrics::LastUpdateOwner {
   friend class InterfaceManager;
 
 public:

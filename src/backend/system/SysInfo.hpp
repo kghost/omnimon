@@ -6,10 +6,17 @@
 
 namespace backend::system {
 
+class Uptime;
+class LoadAvg;
+class SchedStat;
+class CpuStat;
+class MemInfo;
+class VmStat;
+
 class SysInfo {
 public:
-  explicit SysInfo() = default;
-  ~SysInfo() = default;
+  explicit SysInfo();
+  ~SysInfo();
 
   SysInfo(const SysInfo&) = delete;
   SysInfo& operator=(const SysInfo&) = delete;
@@ -18,6 +25,13 @@ public:
 
   std::shared_ptr<metrics::Gauge> GetSystemJiffies();
   std::shared_ptr<metrics::Gauge> GetTotalMem();
+
+  Uptime* GetUptime();
+  LoadAvg* GetLoadAvg();
+  SchedStat* GetSchedStat();
+  CpuStat* GetCpuStat();
+  MemInfo* GetMemInfo();
+  VmStat* GetVmStat();
 
 private:
   class SysConstGauge : public metrics::ConstGauge {
@@ -28,6 +42,13 @@ private:
 
   std::shared_ptr<SysConstGauge> _SystemJiffies;
   std::shared_ptr<SysConstGauge> _TotalMem;
+
+  std::unique_ptr<Uptime> _Uptime;
+  std::unique_ptr<LoadAvg> _LoadAvg;
+  std::unique_ptr<SchedStat> _SchedStat;
+  std::unique_ptr<CpuStat> _CpuStat;
+  std::unique_ptr<MemInfo> _MemInfo;
+  std::unique_ptr<VmStat> _VmStat;
 };
 
 } // namespace backend::system

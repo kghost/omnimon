@@ -6,7 +6,6 @@
 
 namespace backend::metrics {
 
-class Publisher;
 class SubscriberBase;
 
 class Publisher {

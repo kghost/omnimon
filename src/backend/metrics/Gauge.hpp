@@ -7,7 +7,7 @@
 
 namespace backend::metrics {
 
-class Gauge : virtual public Publisher {
+class Gauge : public Publisher {
 protected:
   virtual ~Gauge() = default;
 

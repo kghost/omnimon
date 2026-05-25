@@ -11,7 +11,7 @@ namespace backend::cgroupv2 {
 
 class CGroupNode;
 
-class CGroupMetrics : public metrics::SharedPublisherOwner {
+class CGroupMetrics : public metrics::LastUpdateOwner {
 public:
   CGroupMetrics(const CGroupNode& node);
   ~CGroupMetrics() = default;

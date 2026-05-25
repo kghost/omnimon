@@ -7,48 +7,50 @@
 
 namespace backend::metrics {
 
-class SharedPublisherOwner {
+class LastUpdateOwner {
 public:
-  virtual ~SharedPublisherOwner() = default;
+  virtual ~LastUpdateOwner() = default;
   virtual std::chrono::steady_clock::time_point GetLastUpdate() const = 0;
 };
 
-class SharedPublisherBase : virtual public Publisher {
+class SharedLastUpdate {
 public:
-  explicit SharedPublisherBase(SharedPublisherOwner& owner) : _Owner(owner) {}
-  virtual ~SharedPublisherBase() = default;
+  explicit SharedLastUpdate(LastUpdateOwner& owner) : _Owner(owner) {}
+  virtual ~SharedLastUpdate() = default;
 
   std::chrono::steady_clock::time_point GetLastUpdate() const { return _Owner.GetLastUpdate(); }
 
 private:
-  SharedPublisherOwner& _Owner;
+  LastUpdateOwner& _Owner;
 };
 
-template <typename Metrics> class SharedPublisher : public SharedPublisherBase {
+template <typename DataType> class SharedPublisher final : public SharedLastUpdate, public Publisher {
 public:
   template <typename... Args>
-  explicit SharedPublisher(SharedPublisherOwner& owner, Args&&... args)
-      : SharedPublisherBase(owner), _Metrics(std::forward<Args>(args)...) {}
+  explicit SharedPublisher(LastUpdateOwner& owner, Args&&... args)
+      : SharedLastUpdate(owner), _Metrics(std::forward<Args>(args)...) {}
 
-  void SetValue(Metrics value) {
+  void SetValue(DataType value) {
     _Metrics = value;
     Notify();
   }
-  Metrics GetValue() const { return _Metrics; }
+  DataType GetValue() const { return _Metrics; }
 
 private:
-  Metrics _Metrics;
+  DataType _Metrics;
 };
 
-class SharedGauge : public SharedPublisherBase, public backend::metrics::Gauge {
+class SharedGauge : public SharedLastUpdate, public backend::metrics::Gauge {
 public:
-  explicit SharedGauge(SharedPublisherOwner& owner) : SharedPublisherBase(owner), _Value(0) {}
+  explicit SharedGauge(LastUpdateOwner& owner) : SharedLastUpdate(owner), _Value(0) {}
   ~SharedGauge() override = default;
 
-  std::chrono::steady_clock::time_point GetLastUpdate() const override { return SharedPublisherBase::GetLastUpdate(); }
-  metrics::DataType GetValue() const override;
-
-  void SetValue(metrics::DataType value);
+  std::chrono::steady_clock::time_point GetLastUpdate() const override { return SharedLastUpdate::GetLastUpdate(); }
+  metrics::DataType GetValue() const override { return _Value; }
+  void SetValue(metrics::DataType value) {
+    _Value = value;
+    Notify();
+  }
 
 private:
   metrics::DataType _Value;

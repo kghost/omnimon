@@ -16,8 +16,7 @@ using GaugePtr = std::shared_ptr<backend::metrics::Gauge>;
 
 class ProcessManager;
 
-class Process final : public utils::TreeNodeMixin<ProcessManager, PidType, Process>,
-                      public metrics::SharedPublisherOwner {
+class Process final : public utils::TreeNodeMixin<ProcessManager, PidType, Process>, public metrics::LastUpdateOwner {
 public:
   static const std::chrono::steady_clock::time_point EPOCH;
 
