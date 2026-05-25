@@ -24,12 +24,9 @@ set(FTXUI_ENABLE_INSTALL OFF)
 
 add_compile_options("-fno-omit-frame-pointer")
 
-option(OMNIMON_ENABLE_ASAN "Enable AddressSanitizer for host targets" ON)
+# We build both standard and ASan target variants simultaneously.
+# The target-specific ASan configuration is managed in cmake/OmniMonTargets.cmake.
 
-if(OMNIMON_ENABLE_ASAN)
-  add_compile_options("-fsanitize=address")
-  add_link_options("-fsanitize=address")
-endif()
 
 execute_process(
   COMMAND uname -m
@@ -61,6 +58,15 @@ enable_testing()
 
 find_package(PkgConfig REQUIRED)
 find_package(GTest REQUIRED)
+
+option(OMNIMON_BUILD_STANDARD "Build standard (without ASan) targets" ON)
+option(OMNIMON_BUILD_ASAN "Build ASan-instrumented targets" ON)
+
+if(NOT OMNIMON_BUILD_STANDARD AND NOT OMNIMON_BUILD_ASAN)
+  message(FATAL_ERROR "At least one of OMNIMON_BUILD_STANDARD or OMNIMON_BUILD_ASAN must be enabled.")
+endif()
+
+include(OmniMonTargets)
 
 add_subdirectory(external/ftxui)
 add_subdirectory(src)
